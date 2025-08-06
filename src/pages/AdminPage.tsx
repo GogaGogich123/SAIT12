@@ -38,7 +38,6 @@ import {
   getCadets,
   getAchievements,
   getAutoAchievements,
-  getCadetAchievements,
   addAchievement,
   updateAchievement,
   deleteAchievement,
@@ -55,7 +54,6 @@ import {
   type Cadet,
   type Achievement,
   type AutoAchievement,
-  type CadetAchievement,
   type News,
   type Task
 } from '../lib/supabase';
