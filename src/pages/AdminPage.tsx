@@ -200,6 +200,11 @@ const AdminPage: React.FC = () => {
 
   const handleCreateAchievement = async () => {
     try {
+      if (!achievementForm.title || !achievementForm.description) {
+        showError('Заполните все обязательные поля');
+        return;
+      }
+      
       const newAchievement = await addAchievement(achievementForm);
       setAchievements([...achievements, newAchievement]);
       setShowAchievementModal(false);
@@ -262,6 +267,11 @@ const AdminPage: React.FC = () => {
     if (!user) return;
     
     try {
+      if (!scoreForm.cadetId || !scoreForm.description || scoreForm.points === 0) {
+        showError('Заполните все поля');
+        return;
+      }
+      
       await addScoreHistory({
         cadet_id: scoreForm.cadetId,
         category: scoreForm.category,
@@ -287,6 +297,11 @@ const AdminPage: React.FC = () => {
 
   const handleCreateNews = async () => {
     try {
+      if (!newsForm.title || !newsForm.content || !newsForm.author) {
+        showError('Заполните все обязательные поля');
+        return;
+      }
+      
       const newNews = await addNews(newsForm);
       setNews([newNews, ...news]);
       setShowNewsModal(false);

@@ -271,7 +271,14 @@ export const updateNews = async (id: string, updates: Partial<News>): Promise<vo
 export const addNews = async (newsData: Omit<News, 'id' | 'created_at' | 'updated_at'>): Promise<News> => {
   const { data, error } = await supabase
     .from('news')
-    .insert([newsData])
+    .insert([{
+      title: newsData.title,
+      content: newsData.content,
+      author: newsData.author,
+      is_main: newsData.is_main,
+      background_image_url: newsData.background_image_url || null,
+      images: newsData.images || []
+    }])
     .select()
     .single();
   
@@ -302,7 +309,13 @@ export const getAchievements = async (): Promise<Achievement[]> => {
 export const addAchievement = async (achievementData: Omit<Achievement, 'id' | 'created_at'>): Promise<Achievement> => {
   const { data, error } = await supabase
     .from('achievements')
-    .insert([achievementData])
+    .insert([{
+      title: achievementData.title,
+      description: achievementData.description,
+      category: achievementData.category,
+      icon: achievementData.icon,
+      color: achievementData.color
+    }])
     .select()
     .single();
   
@@ -345,7 +358,13 @@ export const awardAchievement = async (cadetId: string, achievementId: string, a
 export const addScoreHistory = async (scoreData: Omit<ScoreHistory, 'id' | 'created_at'>): Promise<void> => {
   const { error } = await supabase
     .from('score_history')
-    .insert([scoreData]);
+    .insert([{
+      cadet_id: scoreData.cadet_id,
+      category: scoreData.category,
+      points: scoreData.points,
+      description: scoreData.description,
+      awarded_by: scoreData.awarded_by
+    }]);
   
   if (error) throw error;
 };
@@ -389,7 +408,10 @@ export const updateCadetScores = async (cadetId: string, category: 'study' | 'di
   // Обновляем общий счет кадета
   const { error: updateCadetError } = await supabase
     .from('cadets')
-    .update({ total_score: totalScore })
+    .update({ 
+      total_score: totalScore,
+      updated_at: new Date().toISOString()
+    })
     .eq('id', cadetId);
   
   if (updateCadetError) throw updateCadetError;
