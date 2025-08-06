@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import ParticleBackground from '../components/ParticleBackground';
 import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
+import { TEST_ACCOUNTS } from '../lib/auth';
 import { fadeInUp, scaleIn } from '../utils/animations';
 
 const LoginPage: React.FC = () => {
@@ -145,17 +146,20 @@ const LoginPage: React.FC = () => {
                   className="glass-effect rounded-xl p-4 hover-lift"
                 >
                   <strong>Администратор:</strong><br />
-                  Email: admin@nkkk.ru<br />
-                  Пароль: admin123
+                  Email: {TEST_ACCOUNTS.admin.email}<br />
+                  Пароль: {TEST_ACCOUNTS.admin.password}
                 </motion.div>
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
-                  className="glass-effect rounded-xl p-4 hover-lift"
-                >
-                  <strong>Кадет:</strong><br />
-                  Email: cadet@nkkk.ru<br />
-                  Пароль: cadet123
-                </motion.div>
+                {TEST_ACCOUNTS.cadets.map((cadet, index) => (
+                  <motion.div 
+                    key={index}
+                    whileHover={{ scale: 1.02 }}
+                    className="glass-effect rounded-xl p-4 hover-lift"
+                  >
+                    <strong>Кадет ({cadet.name.split(' ')[0]}):</strong><br />
+                    Email: {cadet.email}<br />
+                    Пароль: {cadet.password}
+                  </motion.div>
+                ))}
               </div>
             </div>
           </div>

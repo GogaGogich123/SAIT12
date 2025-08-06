@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { authenticateUser, getCadetByAuthId, type AuthUser, type LoginCredentials } from '../lib/auth';
 
 interface User {
   id: string;
@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,123 +30,93 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем текущую сессию при загрузке
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await handleSupabaseUser(session.user);
+    // Проверяем сохраненную сессию при загрузке
+    const checkStoredSession = () => {
+      try {
+        const storedUser = localStorage.getItem('auth_user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Error loading stored session:', error);
+        localStorage.removeItem('auth_user');
+      } finally {
+        setLoading(false);
       }
     };
-    
-    checkSession();
-    
-    // Слушаем изменения аутентификации
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        await handleSupabaseUser(session.user);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-      }
-    });
-    
-    return () => subscription.unsubscribe();
+
+    checkStoredSession();
   }, []);
 
-  const handleSupabaseUser = async (authUser: any) => {
+  const handleAuthUser = async (authUser: AuthUser) => {
     try {
-      // Получаем данные кадета из базы
-      const { data: cadetData, error: cadetError } = await supabase
-        .from('cadets')
-        .select('*')
-        .eq('auth_user_id', authUser.id)
-        .single();
+      if (authUser.role === 'cadet') {
+        // Получаем данные кадета
+        const cadetData = await getCadetByAuthId(authUser.id);
+        
+        if (cadetData) {
+          const userData = {
+            id: authUser.id,
+            name: authUser.name,
+            role: 'cadet' as const,
+            platoon: cadetData.platoon,
+            squad: cadetData.squad,
+            cadetId: cadetData.id
+          };
+          setUser(userData);
+          localStorage.setItem('auth_user', JSON.stringify(userData));
+          return true;
+        }
+      } else if (authUser.role === 'admin') {
+        const userData = {
+          id: authUser.id,
+          name: authUser.name,
+          role: 'admin' as const
+        };
+        setUser(userData);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
+        return true;
+      }
 
-      if (!cadetError && cadetData) {
-        setUser({
-          id: authUser.id,
-          name: cadetData.name,
-          role: 'cadet',
-          platoon: cadetData.platoon,
-          squad: cadetData.squad,
-          cadetId: cadetData.id
-        });
-        return true;
-      }
-      
-      // Проверяем, может быть это администратор
-      if (authUser.email === 'admin@nkkk.ru') {
-        setUser({
-          id: authUser.id,
-          name: 'Администратор',
-          role: 'admin'
-        });
-        return true;
-      }
-      
       return false;
     } catch (error) {
-      console.error('Error handling Supabase user:', error);
+      console.error('Error handling auth user:', error);
       return false;
     }
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Попытка входа через Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const authUser = await authenticateUser({
         email,
         password
       });
 
-      if (authData.user) {
-        return await handleSupabaseUser(authData.user);
+      if (authUser) {
+        return await handleAuthUser(authUser);
       }
 
-      // Если Supabase не сработал, пробуем mock данные
-      if (authError) {
-        console.log('Supabase auth error, trying mock login:', authError.message);
-      }
-      return mockLogin(email, password);
+      return false;
     } catch (error) {
       console.error('Login error:', error);
-      return mockLogin(email, password);
+      return false;
     }
   };
 
-  const mockLogin = (email: string, password: string): boolean => {
-    if (email === 'admin@nkkk.ru' && password === 'admin123') {
-      setUser({
-        id: '1',
-        name: 'Администратор Иванов И.И.',
-        role: 'admin'
-      });
-      return true;
-    } else if (email === 'cadet@nkkk.ru' && password === 'cadet123') {
-      setUser({
-        id: 'cadet1',
-        name: 'Петров Алексей Владимирович',
-        role: 'cadet',
-        platoon: '10-1',
-        squad: 2,
-        cadetId: 'cadet1'
-      });
-      return true;
-    }
-    return false;
-  };
 
   const logout = () => {
-    // Выход из Supabase Auth
-    supabase.auth.signOut().catch(console.error);
+    localStorage.removeItem('auth_user');
     setUser(null);
   };
 
   const isAdmin = user?.role === 'admin';
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, loading }}>
       {children}
     </AuthContext.Provider>
   );
