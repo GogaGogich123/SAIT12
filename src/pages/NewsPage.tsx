@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Calendar, User, Star } from 'lucide-react';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LazyImage from '../components/LazyImage';
 import NewsCard from '../components/news/NewsCard';
 import NewsModal from '../components/news/NewsModal';
 import { getNews, type News } from '../lib/supabase';

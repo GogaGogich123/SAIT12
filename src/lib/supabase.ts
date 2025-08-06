@@ -222,7 +222,7 @@ export const getTasks = async (): Promise<Task[]> => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('status', 'active')
+    .eq('is_active', true)
     .order('deadline', { ascending: true });
   
   if (error) throw error;
@@ -415,7 +415,6 @@ export const addScoreHistory = async (scoreData: Omit<ScoreHistory, 'id' | 'crea
       category: scoreData.category,
       points: scoreData.points,
       description: scoreData.description,
-      awarded_by: scoreData.awarded_by
     }]);
   
   if (error) throw error;
