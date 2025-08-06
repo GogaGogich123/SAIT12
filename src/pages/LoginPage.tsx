@@ -23,13 +23,19 @@ const LoginPage: React.FC = () => {
     setIsLoading(true);
 
     try {
+      console.log('Submitting login form:', { email, password: '***' });
       const success = await login(email, password);
+      console.log('Login result:', success);
+      
       if (success) {
+        console.log('Login successful, navigating to home');
         navigate('/');
       } else {
+        console.log('Login failed, showing error');
         setError('Неверный email или пароль');
       }
     } catch (err) {
+      console.error('Login form error:', err);
       setError('Произошла ошибка при входе');
     } finally {
       setIsLoading(false);

@@ -53,22 +53,34 @@ const TasksPage: React.FC = () => {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!user?.cadetId) {
-        console.log('No cadet ID found, user:', user);
+      if (!user) {
+        console.log('No user found');
+        return;
+      }
+      
+      // Для кадетов используем cadetId, для админов - id
+      const cadetId = user.role === 'cadet' ? (user.cadetId || user.id) : null;
+      
+      if (user.role === 'cadet' && !cadetId) {
+        console.log('No cadet ID found for cadet user:', user);
         return;
       }
       
       try {
         setLoading(true);
-        console.log('Fetching tasks for cadet:', user.cadetId);
+        console.log('Fetching tasks for user:', user.role, cadetId);
         
         // Получаем все активные задания
         const tasksData = await getTasks();
         console.log('Tasks data received:', tasksData);
         
-        // Получаем сдачи заданий текущего кадета
-        const submissionsData = await getTaskSubmissions(user.cadetId);
-        console.log('Submissions data received:', submissionsData);
+        let submissionsData = [];
+        
+        // Получаем сдачи заданий только для кадетов
+        if (user.role === 'cadet' && cadetId) {
+          submissionsData = await getTaskSubmissions(cadetId);
+          console.log('Submissions data received:', submissionsData);
+        }
         
         // Объединяем данные
         const tasksWithSubmissions: TaskWithSubmission[] = tasksData.map(task => {
@@ -91,7 +103,7 @@ const TasksPage: React.FC = () => {
     };
 
     fetchTasks();
-  }, [user?.cadetId]);
+  }, [user]);
 
   const categories = [
     { key: 'all', name: 'Все задания', icon: CheckSquare, color: 'from-gray-600 to-gray-800' },
@@ -150,10 +162,13 @@ const TasksPage: React.FC = () => {
   };
 
   const handleTakeTask = async (taskId: string) => {
-    if (!user?.cadetId) return;
+    if (!user || user.role !== 'cadet') return;
+    
+    const cadetId = user.cadetId || user.id;
+    if (!cadetId) return;
     
     try {
-      await takeTask(taskId, user.cadetId);
+      await takeTask(taskId, cadetId);
       // Обновляем список заданий
       setTasks(tasks.map(task => 
         task.id === taskId 
@@ -167,10 +182,13 @@ const TasksPage: React.FC = () => {
   };
 
   const handleSubmitTask = async (taskId: string) => {
-    if (!user?.cadetId) return;
+    if (!user || user.role !== 'cadet') return;
+    
+    const cadetId = user.cadetId || user.id;
+    if (!cadetId) return;
     
     try {
-      await submitTask(taskId, user.cadetId, submissionText);
+      await submitTask(taskId, cadetId, submissionText);
       // Обновляем список заданий
       setTasks(tasks.map(task => 
         task.id === taskId 
@@ -186,10 +204,13 @@ const TasksPage: React.FC = () => {
   };
 
   const handleAbandonTask = async (taskId: string) => {
-    if (!user?.cadetId) return;
+    if (!user || user.role !== 'cadet') return;
+    
+    const cadetId = user.cadetId || user.id;
+    if (!cadetId) return;
     
     try {
-      await abandonTask(taskId, user.cadetId);
+      await abandonTask(taskId, cadetId);
       // Обновляем список заданий
       setTasks(tasks.map(task => 
         task.id === taskId 

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authenticateUser, getCadetByAuthId, type AuthUser, type LoginCredentials } from '../lib/auth';
+import { authenticateUser, getCadetByAuthId, type AuthUser } from '../lib/auth';
 
 interface User {
   id: string;
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const storedUser = localStorage.getItem('auth_user');
         if (storedUser) {
           const userData = JSON.parse(storedUser);
+          console.log('Loaded stored user:', userData);
           setUser(userData);
         }
       } catch (error) {
@@ -54,6 +55,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const handleAuthUser = async (authUser: AuthUser) => {
     try {
+      console.log('Handling auth user:', authUser);
+      
       if (authUser.role === 'cadet') {
         // Получаем данные кадета
         const cadetData = await getCadetByAuthId(authUser.id);
@@ -79,6 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: authUser.name,
           role: 'admin' as const
         };
+        console.log('Setting admin user data:', userData);
         setUser(userData);
         localStorage.setItem('auth_user', JSON.stringify(userData));
         return true;
@@ -93,15 +97,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Login attempt for:', email);
+      
       const authUser = await authenticateUser({
         email,
         password
       });
 
       if (authUser) {
+        console.log('Authentication successful:', authUser);
         return await handleAuthUser(authUser);
       }
 
+      console.log('Authentication failed');
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -111,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const logout = () => {
+    console.log('Logging out user');
     localStorage.removeItem('auth_user');
     setUser(null);
   };
