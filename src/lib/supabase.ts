@@ -129,7 +129,7 @@ export const getCadetScores = async (cadetId: string): Promise<Score | null> => 
     .from('scores')
     .select('*')
     .eq('cadet_id', cadetId)
-    .single();
+    .maybeSingle();
   
   if (error && error.code !== 'PGRST116') throw error;
   return data;

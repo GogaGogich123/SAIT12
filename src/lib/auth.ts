@@ -79,7 +79,7 @@ export const getCadetByAuthId = async (authUserId: string) => {
       .from('cadets')
       .select('*')
       .eq('auth_user_id', authUserId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       throw error;
