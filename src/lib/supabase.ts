@@ -239,3 +239,206 @@ export const abandonTask = async (taskId: string, cadetId: string): Promise<void
   
   if (error) throw error;
 };
+
+// Update functions
+export const updateCadet = async (id: string, updates: Partial<Cadet>): Promise<void> => {
+  const { error } = await supabase
+    .from('cadets')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const updateTask = async (id: string, updates: Partial<Task>): Promise<void> => {
+  const { error } = await supabase
+    .from('tasks')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const updateNews = async (id: string, updates: Partial<News>): Promise<void> => {
+  const { error } = await supabase
+    .from('news')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const addNews = async (newsData: Omit<News, 'id' | 'created_at' | 'updated_at'>): Promise<News> => {
+  const { data, error } = await supabase
+    .from('news')
+    .insert([newsData])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const deleteNews = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('news')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+// Achievements functions
+export const getAchievements = async (): Promise<Achievement[]> => {
+  const { data, error } = await supabase
+    .from('achievements')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) throw error;
+  return data || [];
+};
+
+export const addAchievement = async (achievementData: Omit<Achievement, 'id' | 'created_at'>): Promise<Achievement> => {
+  const { data, error } = await supabase
+    .from('achievements')
+    .insert([achievementData])
+    .select()
+    .single();
+  
+  if (error) throw error;
+  return data;
+};
+
+export const updateAchievement = async (id: string, updates: Partial<Achievement>): Promise<void> => {
+  const { error } = await supabase
+    .from('achievements')
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const deleteAchievement = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('achievements')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+};
+
+export const awardAchievement = async (cadetId: string, achievementId: string, awardedBy: string): Promise<void> => {
+  const { error } = await supabase
+    .from('cadet_achievements')
+    .insert([{
+      cadet_id: cadetId,
+      achievement_id: achievementId,
+      awarded_by: awardedBy,
+      awarded_date: new Date().toISOString()
+    }]);
+  
+  if (error) throw error;
+};
+
+// Score management functions
+export const addScoreHistory = async (scoreData: Omit<ScoreHistory, 'id' | 'created_at'>): Promise<void> => {
+  const { error } = await supabase
+    .from('score_history')
+    .insert([scoreData]);
+  
+  if (error) throw error;
+};
+
+export const updateCadetScores = async (cadetId: string, category: 'study' | 'discipline' | 'events', points: number): Promise<void> => {
+  // Получаем текущие баллы
+  const { data: currentScores, error: fetchError } = await supabase
+    .from('scores')
+    .select('*')
+    .eq('cadet_id', cadetId)
+    .single();
+  
+  if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+  
+  const newScores = {
+    study_score: currentScores?.study_score || 0,
+    discipline_score: currentScores?.discipline_score || 0,
+    events_score: currentScores?.events_score || 0
+  };
+  
+  newScores[`${category}_score`] = Math.max(0, (newScores[`${category}_score`] || 0) + points);
+  const totalScore = newScores.study_score + newScores.discipline_score + newScores.events_score;
+  
+  if (currentScores) {
+    // Обновляем существующие баллы
+    const { error } = await supabase
+      .from('scores')
+      .update(newScores)
+      .eq('cadet_id', cadetId);
+    
+    if (error) throw error;
+  } else {
+    // Создаем новую запись
+    const { error } = await supabase
+      .from('scores')
+      .insert([{ cadet_id: cadetId, ...newScores }]);
+    
+    if (error) throw error;
+  }
+  
+  // Обновляем общий счет кадета
+  const { error: updateCadetError } = await supabase
+    .from('cadets')
+    .update({ total_score: totalScore })
+    .eq('id', cadetId);
+  
+  if (updateCadetError) throw updateCadetError;
+};
+
+// Analytics functions
+export const getAnalytics = async () => {
+  try {
+    // Общая статистика
+    const { data: cadetsCount } = await supabase
+      .from('cadets')
+      .select('id', { count: 'exact' });
+    
+    const { data: tasksCount } = await supabase
+      .from('tasks')
+      .select('id', { count: 'exact' })
+      .eq('status', 'active');
+    
+    const { data: achievementsCount } = await supabase
+      .from('achievements')
+      .select('id', { count: 'exact' });
+    
+    // Статистика по взводам
+    const { data: platoonStats } = await supabase
+      .from('cadets')
+      .select('platoon, total_score');
+    
+    // Средние баллы по категориям
+    const { data: avgScores } = await supabase
+      .from('scores')
+      .select('study_score, discipline_score, events_score');
+    
+    // Топ кадеты
+    const { data: topCadets } = await supabase
+      .from('cadets')
+      .select('name, total_score, platoon')
+      .order('total_score', { ascending: false })
+      .limit(10);
+    
+    return {
+      totalCadets: cadetsCount?.length || 0,
+      totalTasks: tasksCount?.length || 0,
+      totalAchievements: achievementsCount?.length || 0,
+      platoonStats: platoonStats || [],
+      avgScores: avgScores || [],
+      topCadets: topCadets || []
+    };
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    throw error;
+  }
+};
