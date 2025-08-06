@@ -16,13 +16,19 @@ import {
   Calendar,
   Medal
 } from 'lucide-react';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import StatCard from '../components/StatCard';
+import { useSEO } from '../hooks/useSEO';
 import { fadeInUp, staggerContainer, staggerItem, scaleIn } from '../utils/animations';
 
 const HomePage: React.FC = () => {
+  useSEO({
+    title: 'Главная',
+    description: 'Новороссийский казачий кадетский корпус - воспитание лидеров будущего через традиции, дисциплину и стремление к совершенству',
+    keywords: ['кадетский корпус', 'новороссийск', 'казачий', 'образование', 'рейтинг', 'кадеты'],
+    ogType: 'website'
+  });
+  
   const heroRef = useRef(null);
   const statsRef = useRef(null);
   const featuresRef = useRef(null);

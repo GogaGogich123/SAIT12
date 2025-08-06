@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { cache } from './cache';
+import { CACHE_KEYS, CACHE_DURATION } from '../utils/constants';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -104,16 +106,33 @@ export interface TaskSubmission {
 
 // Functions
 export const getCadets = async (): Promise<Cadet[]> => {
+  // Проверяем кэш
+  const cached = cache.get<Cadet[]>(CACHE_KEYS.CADETS);
+  if (cached) {
+    return cached;
+  }
+  
   const { data, error } = await supabase
     .from('cadets')
     .select('*')
     .order('rank', { ascending: true });
   
   if (error) throw error;
-  return data || [];
+  
+  const result = data || [];
+  // Кэшируем результат
+  cache.set(CACHE_KEYS.CADETS, result, CACHE_DURATION.MEDIUM);
+  
+  return result;
 };
 
 export const getCadetById = async (id: string): Promise<Cadet> => {
+  const cacheKey = `${CACHE_KEYS.CADETS}_${id}`;
+  const cached = cache.get<Cadet>(cacheKey);
+  if (cached) {
+    return cached;
+  }
+  
   const { data, error } = await supabase
     .from('cadets')
     .select('*')
@@ -121,6 +140,10 @@ export const getCadetById = async (id: string): Promise<Cadet> => {
     .single();
   
   if (error) throw error;
+  
+  // Кэшируем результат
+  cache.set(cacheKey, data, CACHE_DURATION.LONG);
+  
   return data;
 };
 
@@ -172,16 +195,30 @@ export const getScoreHistory = async (cadetId: string): Promise<ScoreHistory[]> 
 };
 
 export const getNews = async (): Promise<News[]> => {
+  const cached = cache.get<News[]>(CACHE_KEYS.NEWS);
+  if (cached) {
+    return cached;
+  }
+  
   const { data, error } = await supabase
     .from('news')
     .select('*')
     .order('created_at', { ascending: false });
   
   if (error) throw error;
-  return data || [];
+  
+  const result = data || [];
+  cache.set(CACHE_KEYS.NEWS, result, CACHE_DURATION.SHORT);
+  
+  return result;
 };
 
 export const getTasks = async (): Promise<Task[]> => {
+  const cached = cache.get<Task[]>(CACHE_KEYS.TASKS);
+  if (cached) {
+    return cached;
+  }
+  
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
@@ -189,7 +226,11 @@ export const getTasks = async (): Promise<Task[]> => {
     .order('deadline', { ascending: true });
   
   if (error) throw error;
-  return data || [];
+  
+  const result = data || [];
+  cache.set(CACHE_KEYS.TASKS, result, CACHE_DURATION.MEDIUM);
+  
+  return result;
 };
 
 export const getTaskSubmissions = async (cadetId: string): Promise<TaskSubmission[]> => {
@@ -248,6 +289,10 @@ export const updateCadet = async (id: string, updates: Partial<Cadet>): Promise<
     .eq('id', id);
   
   if (error) throw error;
+  
+  // Очищаем кэш кадетов
+  cache.delete(CACHE_KEYS.CADETS);
+  cache.delete(`${CACHE_KEYS.CADETS}_${id}`);
 };
 
 export const updateTask = async (id: string, updates: Partial<Task>): Promise<void> => {
@@ -283,6 +328,10 @@ export const addNews = async (newsData: Omit<News, 'id' | 'created_at' | 'update
     .single();
   
   if (error) throw error;
+  
+  // Очищаем кэш новостей
+  cache.delete(CACHE_KEYS.NEWS);
+  
   return data;
 };
 
@@ -293,6 +342,9 @@ export const deleteNews = async (id: string): Promise<void> => {
     .eq('id', id);
   
   if (error) throw error;
+  
+  // Очищаем кэш новостей
+  cache.delete(CACHE_KEYS.NEWS);
 };
 
 // Achievements functions

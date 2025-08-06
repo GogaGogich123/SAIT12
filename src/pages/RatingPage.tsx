@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Trophy, Medal, Target, Users, TrendingUp, TrendingDown } from 'lucide-react';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LazyImage from '../components/LazyImage';
 import { getCadets, getCadetScores, type Cadet, type Score } from '../lib/supabase';
+import { useDebounce } from '../hooks/useDebounce';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useSEO } from '../hooks/useSEO';
+import { DEFAULTS, IMAGE_SIZES } from '../utils/constants';
+import { optimizeImageUrl } from '../utils/performance';
 import { fadeInUp, staggerContainer, staggerItem } from '../utils/animations';
 
 interface CadetWithScores extends Cadet {
@@ -19,13 +23,22 @@ interface CadetWithScores extends Cadet {
 }
 
 const RatingPage: React.FC = () => {
+  useSEO({
+    title: 'Рейтинг кадетов',
+    description: 'Рейтинг успехов и достижений кадетов Новороссийского казачьего кадетского корпуса',
+    keywords: ['рейтинг кадетов', 'успехи', 'достижения', 'баллы', 'учеба', 'дисциплина'],
+    ogType: 'website'
+  });
+  
   const [selectedCategory, setSelectedCategory] = useState<'total' | 'study' | 'discipline' | 'events'>('total');
-  const [selectedPlatoon, setSelectedPlatoon] = useState<string>('all');
-  const [selectedSquad, setSelectedSquad] = useState<string>('all');
+  const [selectedPlatoon, setSelectedPlatoon] = useLocalStorage('rating_platoon_filter', 'all');
+  const [selectedSquad, setSelectedSquad] = useLocalStorage('rating_squad_filter', 'all');
   const [searchTerm, setSearchTerm] = useState('');
   const [cadets, setCadets] = useState<CadetWithScores[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const platoons = ['7-1', '7-2', '8-1', '8-2', '9-1', '9-2', '10-1', '10-2', '11-1', '11-2'];
   const squads = [1, 2, 3];
@@ -85,7 +98,7 @@ const RatingPage: React.FC = () => {
   ];
 
   const filteredCadets = cadets.filter(cadet => {
-    const matchesSearch = cadet.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = cadet.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const matchesPlatoon = selectedPlatoon === 'all' || cadet.platoon === selectedPlatoon;
     const matchesSquad = selectedSquad === 'all' || cadet.squad.toString() === selectedSquad;
     return matchesSearch && matchesPlatoon && matchesSquad;
@@ -277,8 +290,12 @@ const RatingPage: React.FC = () => {
 
                     {/* Avatar */}
                     <div className="flex-shrink-0">
-                      <img
-                        src={cadet.avatar_url || 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?w=200'}
+                      <LazyImage
+                        src={optimizeImageUrl(
+                          cadet.avatar_url || DEFAULTS.AVATAR_URL,
+                          IMAGE_SIZES.AVATAR_MEDIUM.width,
+                          IMAGE_SIZES.AVATAR_MEDIUM.height
+                        )}
                         alt={cadet.name}
                         className="w-20 h-20 rounded-full object-cover border-4 border-white/30 group-hover:border-yellow-400/70 transition-all duration-500 shadow-lg"
                       />

@@ -21,11 +21,10 @@ import {
   Heart
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
+import LazyImage from '../components/LazyImage';
 import { 
   getCadetById, 
   getCadetScores, 
@@ -38,6 +37,8 @@ import {
   type AutoAchievement,
   type ScoreHistory
 } from '../lib/supabase';
+import { DEFAULTS, IMAGE_SIZES } from '../utils/constants';
+import { optimizeImageUrl } from '../utils/performance';
 import { fadeInUp, staggerContainer, staggerItem } from '../utils/animations';
 
 const CadetProfile: React.FC = () => {
@@ -178,8 +179,12 @@ const CadetProfile: React.FC = () => {
               whileHover={{ scale: 1.1, rotate: 5 }}
               className="relative"
             >
-              <img
-                src={cadet.avatar_url || 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?w=400'}
+              <LazyImage
+                src={optimizeImageUrl(
+                  cadet.avatar_url || DEFAULTS.AVATAR_URL,
+                  IMAGE_SIZES.AVATAR_LARGE.width,
+                  IMAGE_SIZES.AVATAR_LARGE.height
+                )}
                 alt={cadet.name}
                 className="w-40 h-40 rounded-full object-cover border-4 border-yellow-400 shadow-2xl hover-glow"
               />

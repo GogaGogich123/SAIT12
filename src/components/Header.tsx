@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import SearchBar from './SearchBar';
 import Button from './ui/Button';
+import { throttle } from '../utils/performance';
 
 const Header: React.FC = () => {
   const location = useLocation();
@@ -26,10 +27,10 @@ const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = throttle(() => {
     logout();
     navigate('/');
-  };
+  }, 1000);
 
   const navItems = [
     { path: '/', name: 'Главная', icon: Home },

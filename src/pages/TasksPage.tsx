@@ -14,10 +14,9 @@ import {
   SortAsc
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { useSEO } from '../hooks/useSEO';
 import { 
   getTasks, 
   getTaskSubmissions, 
@@ -36,6 +35,14 @@ interface TaskWithSubmission extends Task {
 
 const TasksPage: React.FC = () => {
   const { user } = useAuth();
+  
+  useSEO({
+    title: 'Задания',
+    description: 'Выполняйте задания и получайте баллы рейтинга в системе Новороссийского казачьего кадетского корпуса',
+    keywords: ['задания', 'баллы', 'рейтинг', 'выполнение заданий', 'учеба', 'дисциплина', 'мероприятия'],
+    ogType: 'website'
+  });
+  
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'deadline' | 'points' | 'difficulty'>('deadline');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);

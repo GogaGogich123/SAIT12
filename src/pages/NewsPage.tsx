@@ -1,14 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, User, ChevronLeft, ChevronRight, Star, Share2, Heart, MessageCircle } from 'lucide-react';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LazyImage from '../components/LazyImage';
 import { getNews, type News } from '../lib/supabase';
+import { useSEO } from '../hooks/useSEO';
+import { IMAGE_SIZES } from '../utils/constants';
+import { optimizeImageUrl } from '../utils/performance';
 import { fadeInUp, staggerContainer, staggerItem } from '../utils/animations';
 
 const NewsPage: React.FC = () => {
+  useSEO({
+    title: 'Новости корпуса',
+    description: 'Актуальные события и достижения кадетов Новороссийского казачьего кадетского корпуса',
+    keywords: ['новости', 'события', 'достижения кадетов', 'корпус', 'мероприятия'],
+    ogType: 'website'
+  });
+  
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [news, setNews] = useState<News[]>([]);
@@ -121,8 +130,12 @@ const NewsPage: React.FC = () => {
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10"></div>
               {mainNews.background_image_url && (
-                <img
-                  src={mainNews.background_image_url}
+                <LazyImage
+                  src={optimizeImageUrl(
+                    mainNews.background_image_url,
+                    IMAGE_SIZES.HERO_IMAGE.width,
+                    IMAGE_SIZES.HERO_IMAGE.height
+                  )}
                   alt={mainNews.title}
                   className="w-full h-[500px] object-cover group-hover:scale-110 transition-transform duration-700"
                 />
@@ -171,8 +184,12 @@ const NewsPage: React.FC = () => {
             >
               {news.images[0] && (
                 <div className="relative overflow-hidden">
-                  <img
-                    src={news.images[0]}
+                  <LazyImage
+                    src={optimizeImageUrl(
+                      news.images[0],
+                      IMAGE_SIZES.CARD_IMAGE.width,
+                      IMAGE_SIZES.CARD_IMAGE.height
+                    )}
                     alt={news.title}
                     className="w-full h-56 object-cover group-hover:scale-110 transition-transform duration-700"
                   />
@@ -282,8 +299,12 @@ const NewsPage: React.FC = () => {
                 {selectedNews.images && selectedNews.images.length > 0 && (
                   <div className="relative">
                     <div className="relative overflow-hidden rounded-2xl shadow-2xl">
-                      <img
-                        src={selectedNews.images[currentImageIndex]}
+                      <LazyImage
+                        src={optimizeImageUrl(
+                          selectedNews.images[currentImageIndex],
+                          IMAGE_SIZES.HERO_IMAGE.width,
+                          IMAGE_SIZES.HERO_IMAGE.height
+                        )}
                         alt={`${selectedNews.title} ${currentImageIndex + 1}`}
                         className="w-full h-[500px] object-cover"
                       />

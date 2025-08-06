@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useDebounce } from '../hooks/useDebounce';
+import { getCadets } from '../lib/supabase';
 
 interface SearchResult {
   id: string;
@@ -21,13 +23,17 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ 
   placeholder = 'Поиск...', 
   onSearch,
-  results = [],
+  results: propResults = [],
   isLoading = false
 }) => {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
+  const [results, setResults] = useState<SearchResult[]>(propResults);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const debouncedQuery = useDebounce(query, 300);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -39,6 +45,42 @@ const SearchBar: React.FC<SearchBarProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  
+  useEffect(() => {
+    const searchCadets = async () => {
+      if (debouncedQuery.length < 2) {
+        setResults([]);
+        return;
+      }
+      
+      setSearching(true);
+      
+      try {
+        const cadets = await getCadets();
+        const filteredCadets = cadets
+          .filter(cadet => 
+            cadet.name.toLowerCase().includes(debouncedQuery.toLowerCase())
+          )
+          .slice(0, 5)
+          .map(cadet => ({
+            id: cadet.id,
+            name: cadet.name,
+            type: 'cadet' as const,
+            subtitle: `${cadet.platoon} взвод, ${cadet.squad} отделение`,
+            url: `/cadet/${cadet.id}`
+          }));
+        
+        setResults(filteredCadets);
+      } catch (error) {
+        console.error('Search error:', error);
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+    };
+    
+    searchCadets();
+  }, [debouncedQuery]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -89,7 +131,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             exit={{ opacity: 0, y: -10 }}
             className="absolute top-full left-0 right-0 mt-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg shadow-2xl z-50 max-h-80 overflow-y-auto"
           >
-            {isLoading ? (
+            {(isLoading || searching) ? (
               <div className="p-4 text-center text-blue-300">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400 mx-auto mb-2"></div>
                 Поиск...
