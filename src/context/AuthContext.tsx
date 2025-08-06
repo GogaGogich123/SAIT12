@@ -30,6 +30,67 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
+  useEffect(() => {
+    // Проверяем текущую сессию при загрузке
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await handleSupabaseUser(session.user);
+      }
+    };
+    
+    checkSession();
+    
+    // Слушаем изменения аутентификации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await handleSupabaseUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSupabaseUser = async (authUser: any) => {
+    try {
+      // Получаем данные кадета из базы
+      const { data: cadetData, error: cadetError } = await supabase
+        .from('cadets')
+        .select('*')
+        .eq('auth_user_id', authUser.id)
+        .single();
+
+      if (!cadetError && cadetData) {
+        setUser({
+          id: authUser.id,
+          name: cadetData.name,
+          role: 'cadet',
+          platoon: cadetData.platoon,
+          squad: cadetData.squad,
+          cadetId: cadetData.id
+        });
+        return true;
+      }
+      
+      // Проверяем, может быть это администратор
+      if (authUser.email === 'admin@nkkk.ru') {
+        setUser({
+          id: authUser.id,
+          name: 'Администратор',
+          role: 'admin'
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error handling Supabase user:', error);
+      return false;
+    }
+  };
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       // Попытка входа через Supabase Auth
@@ -38,33 +99,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password
       });
 
-      if (authError || !authData.user) {
-        // Fallback на mock данные для демонстрации
-        return mockLogin(email, password);
-      }
-
       if (authData.user) {
-        // Получаем данные кадета из базы
-        const { data: cadetData, error: cadetError } = await supabase
-          .from('cadets')
-          .select('*')
-          .eq('auth_user_id', authData.user.id)
-          .single();
-
-        if (!cadetError && cadetData) {
-          setUser({
-            id: authData.user.id,
-            name: cadetData.name,
-            role: 'cadet',
-            platoon: cadetData.platoon,
-            squad: cadetData.squad,
-            cadetId: cadetData.id
-          });
-          return true;
-        }
+        return await handleSupabaseUser(authData.user);
       }
 
-      // If Supabase auth succeeded but no cadet data found, try mock login
+      // Если Supabase не сработал, пробуем mock данные
+      if (authError) {
+        console.log('Supabase auth error, trying mock login:', authError.message);
+      }
       return mockLogin(email, password);
     } catch (error) {
       console.error('Login error:', error);

@@ -185,7 +185,7 @@ export const getTasks = async (): Promise<Task[]> => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('is_active', true)
+    .eq('status', 'active')
     .order('deadline', { ascending: true });
   
   if (error) throw error;

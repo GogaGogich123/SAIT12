@@ -1,1 +1,0 @@
-Couldn't find the requested file /supabase/migrations/20250804141552_bold_lagoon.sql in GogaGogich123/SAIT2.
