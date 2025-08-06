@@ -827,6 +827,25 @@ export const updateCadetScores = async (cadetId: string, category: 'study' | 'di
     console.error('Error fetching cadets:', error);
     return getMockCadets();
   }
+  } else {
+    // Создаем новые баллы
+    const { error } = await supabase
+      .from('scores')
+      .insert([{ cadet_id: cadetId, ...newScores }]);
+    
+    if (error) throw error;
+  }
+  
+  // Обновляем общий счет кадета
+  const { error: updateCadetError } = await supabase
+    .from('cadets')
+    .update({ 
+      total_score: totalScore,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', cadetId);
+  
+  if (updateCadetError) throw updateCadetError;
 };
 
 // Mock data functions for fallback
@@ -883,21 +902,10 @@ const getMockCadets = (): Cadet[] => {
       join_date: '2023-09-01'
     }
   ];
-      .insert([{ cadet_id: cadetId, ...newScores }]);
-    
-    if (error) throw error;
-  }
   
-  // Обновляем общий счет кадета
-  const { error: updateCadetError } = await supabase
-    .from('cadets')
-    .update({ 
-      total_score: totalScore,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', cadetId);
+  cache.set(CACHE_KEYS.CADETS, result, CACHE_DURATION.MEDIUM);
   
-  if (updateCadetError) throw updateCadetError;
+  return result;
 };
 
 // Analytics functions
