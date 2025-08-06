@@ -25,11 +25,8 @@ class ErrorBoundary extends Component<Props, State> {
     console.error('Uncaught error:', error, errorInfo);
     this.setState({ errorInfo });
     
-    // Отправка ошибки в сервис мониторинга (например, Sentry)
-    if (process.env.NODE_ENV === 'production') {
-      // Здесь можно добавить отправку ошибки в сервис мониторинга
-      console.error('Production error:', { error, errorInfo });
-    }
+    // Логируем ошибку для отладки
+    console.error('Error details:', { error, errorInfo });
   }
 
   private handleReload = () => {
