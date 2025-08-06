@@ -11,7 +11,7 @@ import NewsPage from './pages/NewsPage';
 import TasksPage from './pages/TasksPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { useToast } from './hooks/useToast';
 
 const AppContent: React.FC = () => {
