@@ -2,72 +2,81 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Users, 
-  Award, 
+  Trophy, 
   Plus, 
   Edit, 
   Trash2, 
+  Award, 
+  Settings,
+  BarChart3,
+  FileText,
+  CheckSquare,
+  Star,
+  Target,
+  Calendar,
+  TrendingUp,
+  UserPlus,
+  Gift,
+  Medal,
+  Crown,
+  Zap,
+  Shield,
+  Heart,
+  BookOpen,
+  Flame,
+  Sparkles,
   Save,
   X,
-  Star,
-  Trophy,
-  Target,
-  BookOpen,
-  Calendar,
-  AlertCircle,
-  Newspaper,
-  BarChart3,
-  TrendingUp,
-  Medal,
-  Gift,
-  DollarSign
+  Search,
+  Filter
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import ParticleBackground from '../components/ParticleBackground';
-import ModernBackground from '../components/ModernBackground';
+import { useToast } from '../hooks/useToast';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { 
-  supabase,
   getCadets,
-  getTasks,
-  getNews,
   getAchievements,
-  getAnalytics,
-  updateCadet,
-  updateTask,
-  updateNews,
-  addNews,
-  deleteNews,
+  getAutoAchievements,
+  getCadetAchievements,
   addAchievement,
   updateAchievement,
   deleteAchievement,
   awardAchievement,
   addScoreHistory,
   updateCadetScores,
+  getAnalytics,
+  addNews,
+  updateNews,
+  deleteNews,
+  getNews,
+  getTasks,
+  updateTask,
   type Cadet,
-  type Task,
+  type Achievement,
+  type AutoAchievement,
+  type CadetAchievement,
   type News,
-  type Achievement
+  type Task
 } from '../lib/supabase';
 import { fadeInUp, staggerContainer, staggerItem } from '../utils/animations';
 
-interface CadetFormData {
-  name: string;
-  email: string;
-  platoon: string;
-  squad: number;
-}
-
-interface TaskFormData {
+interface AchievementForm {
   title: string;
   description: string;
-  category: 'study' | 'discipline' | 'events';
-  points: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  deadline: string;
+  category: string;
+  icon: string;
+  color: string;
 }
 
-interface NewsFormData {
+interface ScoreForm {
+  cadetId: string;
+  category: 'study' | 'discipline' | 'events';
+  points: number;
+  description: string;
+}
+
+interface NewsForm {
   title: string;
   content: string;
   author: string;
@@ -76,61 +85,45 @@ interface NewsFormData {
   images: string[];
 }
 
-interface AchievementFormData {
-  title: string;
-  description: string;
-  category: string;
-  icon: string;
-  color: string;
-}
-
-interface ScoreFormData {
-  cadetId: string;
-  category: 'study' | 'discipline' | 'events';
-  points: number;
-  description: string;
-}
-
 const AdminPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'cadets' | 'tasks' | 'news' | 'achievements' | 'analytics' | 'scores'>('cadets');
-  const [cadets, setCadets] = useState<Cadet[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [news, setNews] = useState<News[]>([]);
-  const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { success, error: showError } = useToast();
   
-  // Modals
-  const [showAddCadet, setShowAddCadet] = useState(false);
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [showAddNews, setShowAddNews] = useState(false);
-  const [showAddAchievement, setShowAddAchievement] = useState(false);
-  const [showAddScore, setShowAddScore] = useState(false);
-  const [editingCadet, setEditingCadet] = useState<Cadet | null>(null);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [editingNews, setEditingNews] = useState<News | null>(null);
+  // State
+  const [activeTab, setActiveTab] = useState<'overview' | 'cadets' | 'achievements' | 'scores' | 'news' | 'tasks'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [cadets, setCadets] = useState<Cadet[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [autoAchievements, setAutoAchievements] = useState<AutoAchievement[]>([]);
+  const [news, setNews] = useState<News[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  
+  // Modal states
+  const [showAchievementModal, setShowAchievementModal] = useState(false);
+  const [showAwardModal, setShowAwardModal] = useState(false);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [showNewsModal, setShowNewsModal] = useState(false);
   const [editingAchievement, setEditingAchievement] = useState<Achievement | null>(null);
-
-  // Form data
-  const [cadetForm, setCadetForm] = useState<CadetFormData>({
-    name: '',
-    email: '',
-    platoon: '10-1',
-    squad: 1
-  });
-
-  const [taskForm, setTaskForm] = useState<TaskFormData>({
+  const [editingNews, setEditingNews] = useState<News | null>(null);
+  
+  // Form states
+  const [achievementForm, setAchievementForm] = useState<AchievementForm>({
     title: '',
     description: '',
-    category: 'study',
-    points: 10,
-    difficulty: 'easy',
-    deadline: ''
+    category: 'general',
+    icon: 'Star',
+    color: 'from-blue-500 to-blue-700'
   });
-
-  const [newsForm, setNewsForm] = useState<NewsFormData>({
+  
+  const [scoreForm, setScoreForm] = useState<ScoreForm>({
+    cadetId: '',
+    category: 'study',
+    points: 0,
+    description: ''
+  });
+  
+  const [newsForm, setNewsForm] = useState<NewsForm>({
     title: '',
     content: '',
     author: '',
@@ -138,233 +131,88 @@ const AdminPage: React.FC = () => {
     background_image_url: '',
     images: []
   });
+  
+  const [selectedCadetForAward, setSelectedCadetForAward] = useState<string>('');
+  const [selectedAchievementForAward, setSelectedAchievementForAward] = useState<string>('');
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterPlatoon, setFilterPlatoon] = useState('all');
 
-  const [achievementForm, setAchievementForm] = useState<AchievementFormData>({
-    title: '',
-    description: '',
-    category: 'general',
-    icon: 'star',
-    color: 'from-blue-500 to-cyan-500'
-  });
+  const iconOptions = [
+    { value: 'Star', label: 'Звезда', icon: Star },
+    { value: 'Trophy', label: 'Трофей', icon: Trophy },
+    { value: 'Medal', label: 'Медаль', icon: Medal },
+    { value: 'Crown', label: 'Корона', icon: Crown },
+    { value: 'Award', label: 'Награда', icon: Award },
+    { value: 'Target', label: 'Цель', icon: Target },
+    { value: 'Zap', label: 'Молния', icon: Zap },
+    { value: 'Shield', label: 'Щит', icon: Shield },
+    { value: 'Heart', label: 'Сердце', icon: Heart },
+    { value: 'BookOpen', label: 'Книга', icon: BookOpen },
+    { value: 'Users', label: 'Команда', icon: Users },
+    { value: 'Flame', label: 'Огонь', icon: Flame },
+    { value: 'Sparkles', label: 'Искры', icon: Sparkles }
+  ];
 
-  const [scoreForm, setScoreForm] = useState<ScoreFormData>({
-    cadetId: '',
-    category: 'study',
-    points: 0,
-    description: ''
-  });
+  const colorOptions = [
+    { value: 'from-blue-500 to-blue-700', label: 'Синий' },
+    { value: 'from-green-500 to-green-700', label: 'Зелёный' },
+    { value: 'from-red-500 to-red-700', label: 'Красный' },
+    { value: 'from-yellow-500 to-yellow-700', label: 'Жёлтый' },
+    { value: 'from-purple-500 to-purple-700', label: 'Фиолетовый' },
+    { value: 'from-pink-500 to-pink-700', label: 'Розовый' },
+    { value: 'from-indigo-500 to-indigo-700', label: 'Индиго' },
+    { value: 'from-orange-500 to-orange-700', label: 'Оранжевый' }
+  ];
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchData();
-    }
-  }, [isAdmin, activeTab]);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      if (activeTab === 'cadets') {
-        const cadetsData = await getCadets();
-        setCadets(cadetsData || []);
-      } else if (activeTab === 'tasks') {
-        const tasksData = await getTasks();
-        setTasks(tasksData || []);
-      } else if (activeTab === 'news') {
-        const newsData = await getNews();
-        setNews(newsData || []);
-      } else if (activeTab === 'achievements') {
-        const achievementsData = await getAchievements();
-        setAchievements(achievementsData || []);
-      } else if (activeTab === 'analytics') {
-        const analyticsData = await getAnalytics();
+    if (!isAdmin) return;
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [cadetsData, achievementsData, autoAchievementsData, newsData, tasksData, analyticsData] = await Promise.all([
+          getCadets(),
+          getAchievements(),
+          getAutoAchievements(),
+          getNews(),
+          getTasks(),
+          getAnalytics()
+        ]);
+        
+        setCadets(cadetsData);
+        setAchievements(achievementsData);
+        setAutoAchievements(autoAchievementsData);
+        setNews(newsData);
+        setTasks(tasksData);
         setAnalytics(analyticsData);
-      } else if (activeTab === 'scores') {
-        const cadetsData = await getCadets();
-        setCadets(cadetsData || []);
+      } catch (err) {
+        console.error('Error fetching admin data:', err);
+        showError('Ошибка загрузки данных');
+      } finally {
+        setLoading(false);
       }
-      
-    } catch (err: any) {
-      console.error('Error fetching admin data:', err);
-      setError(err.message || 'Ошибка загрузки данных');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  // Cadet functions
-  const handleAddCadet = async () => {
+    fetchData();
+  }, [isAdmin, showError]);
+
+  const handleCreateAchievement = async () => {
     try {
-      const { data, error } = await supabase
-        .from('cadets')
-        .insert([{
-          name: cadetForm.name,
-          email: cadetForm.email,
-          platoon: cadetForm.platoon,
-          squad: cadetForm.squad,
-          total_score: 0,
-          rank: cadets.length + 1
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setCadets([...cadets, data]);
-      setShowAddCadet(false);
-      resetCadetForm();
-    } catch (err: any) {
-      console.error('Error adding cadet:', err);
-      alert('Ошибка при добавлении кадета: ' + err.message);
-    }
-  };
-
-  const handleUpdateCadet = async () => {
-    if (!editingCadet) return;
-    
-    try {
-      await updateCadet(editingCadet.id, cadetForm);
-      setCadets(cadets.map(c => c.id === editingCadet.id ? { ...c, ...cadetForm } : c));
-      setEditingCadet(null);
-      resetCadetForm();
-    } catch (err: any) {
-      console.error('Error updating cadet:', err);
-      alert('Ошибка при обновлении кадета: ' + err.message);
-    }
-  };
-
-  const handleDeleteCadet = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить этого кадета?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('cadets')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      setCadets(cadets.filter(c => c.id !== id));
-    } catch (err: any) {
-      console.error('Error deleting cadet:', err);
-      alert('Ошибка при удалении кадета: ' + err.message);
-    }
-  };
-
-  // Task functions
-  const handleAddTask = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert([{
-          title: taskForm.title,
-          description: taskForm.description,
-          category: taskForm.category,
-          points: taskForm.points,
-          difficulty: taskForm.difficulty,
-          deadline: taskForm.deadline,
-          status: 'active'
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      setTasks([data, ...tasks]);
-      setShowAddTask(false);
-      resetTaskForm();
-    } catch (err: any) {
-      console.error('Error adding task:', err);
-      alert('Ошибка при добавлении задания: ' + err.message);
-    }
-  };
-
-  const handleUpdateTask = async () => {
-    if (!editingTask) return;
-    
-    try {
-      await updateTask(editingTask.id, taskForm);
-      setTasks(tasks.map(t => t.id === editingTask.id ? { ...t, ...taskForm } : t));
-      setEditingTask(null);
-      resetTaskForm();
-    } catch (err: any) {
-      console.error('Error updating task:', err);
-      alert('Ошибка при обновлении задания: ' + err.message);
-    }
-  };
-
-  const handleDeleteTask = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить это задание?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      setTasks(tasks.filter(t => t.id !== id));
-    } catch (err: any) {
-      console.error('Error deleting task:', err);
-      alert('Ошибка при удалении задания: ' + err.message);
-    }
-  };
-
-  // News functions
-  const handleAddNews = async () => {
-    try {
-      const newsData = await addNews({
-        ...newsForm,
-        created_by: user?.id
+      const newAchievement = await addAchievement(achievementForm);
+      setAchievements([...achievements, newAchievement]);
+      setShowAchievementModal(false);
+      setAchievementForm({
+        title: '',
+        description: '',
+        category: 'general',
+        icon: 'Star',
+        color: 'from-blue-500 to-blue-700'
       });
-      
-      setNews([newsData, ...news]);
-      setShowAddNews(false);
-      resetNewsForm();
-    } catch (err: any) {
-      console.error('Error adding news:', err);
-      alert('Ошибка при добавлении новости: ' + err.message);
-    }
-  };
-
-  const handleUpdateNews = async () => {
-    if (!editingNews) return;
-    
-    try {
-      await updateNews(editingNews.id, newsForm);
-      setNews(news.map(n => n.id === editingNews.id ? { ...n, ...newsForm } : n));
-      setEditingNews(null);
-      resetNewsForm();
-    } catch (err: any) {
-      console.error('Error updating news:', err);
-      alert('Ошибка при обновлении новости: ' + err.message);
-    }
-  };
-
-  const handleDeleteNews = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить эту новость?')) return;
-    
-    try {
-      await deleteNews(id);
-      setNews(news.filter(n => n.id !== id));
-    } catch (err: any) {
-      console.error('Error deleting news:', err);
-      alert('Ошибка при удалении новости: ' + err.message);
-    }
-  };
-
-  // Achievement functions
-  const handleAddAchievement = async () => {
-    try {
-      const achievementData = await addAchievement(achievementForm);
-      setAchievements([achievementData, ...achievements]);
-      setShowAddAchievement(false);
-      resetAchievementForm();
-    } catch (err: any) {
-      console.error('Error adding achievement:', err);
-      alert('Ошибка при добавлении достижения: ' + err.message);
+      success('Достижение создано');
+    } catch (err) {
+      showError('Ошибка создания достижения');
     }
   };
 
@@ -373,122 +221,130 @@ const AdminPage: React.FC = () => {
     
     try {
       await updateAchievement(editingAchievement.id, achievementForm);
-      setAchievements(achievements.map(a => a.id === editingAchievement.id ? { ...a, ...achievementForm } : a));
+      setAchievements(achievements.map(a => 
+        a.id === editingAchievement.id ? { ...a, ...achievementForm } : a
+      ));
+      setShowAchievementModal(false);
       setEditingAchievement(null);
-      resetAchievementForm();
-    } catch (err: any) {
-      console.error('Error updating achievement:', err);
-      alert('Ошибка при обновлении достижения: ' + err.message);
+      success('Достижение обновлено');
+    } catch (err) {
+      showError('Ошибка обновления достижения');
     }
   };
 
   const handleDeleteAchievement = async (id: string) => {
-    if (!confirm('Вы уверены, что хотите удалить это достижение?')) return;
+    if (!confirm('Удалить достижение?')) return;
     
     try {
       await deleteAchievement(id);
       setAchievements(achievements.filter(a => a.id !== id));
-    } catch (err: any) {
-      console.error('Error deleting achievement:', err);
-      alert('Ошибка при удалении достижения: ' + err.message);
+      success('Достижение удалено');
+    } catch (err) {
+      showError('Ошибка удаления достижения');
     }
   };
 
-  // Score functions
+  const handleAwardAchievement = async () => {
+    if (!selectedCadetForAward || !selectedAchievementForAward || !user) return;
+    
+    try {
+      await awardAchievement(selectedCadetForAward, selectedAchievementForAward, user.id);
+      setShowAwardModal(false);
+      setSelectedCadetForAward('');
+      setSelectedAchievementForAward('');
+      success('Достижение присуждено');
+    } catch (err) {
+      showError('Ошибка присуждения достижения');
+    }
+  };
+
   const handleAddScore = async () => {
+    if (!user) return;
+    
     try {
       await addScoreHistory({
         cadet_id: scoreForm.cadetId,
         category: scoreForm.category,
         points: scoreForm.points,
         description: scoreForm.description,
-        awarded_by: user?.id
+        awarded_by: user.id
       });
-
+      
       await updateCadetScores(scoreForm.cadetId, scoreForm.category, scoreForm.points);
       
-      setShowAddScore(false);
-      resetScoreForm();
-      
-      // Обновляем список кадетов
-      const updatedCadets = await getCadets();
-      setCadets(updatedCadets);
-    } catch (err: any) {
-      console.error('Error adding score:', err);
-      alert('Ошибка при добавлении баллов: ' + err.message);
+      setShowScoreModal(false);
+      setScoreForm({
+        cadetId: '',
+        category: 'study',
+        points: 0,
+        description: ''
+      });
+      success('Баллы начислены');
+    } catch (err) {
+      showError('Ошибка начисления баллов');
     }
   };
 
-  // Reset forms
-  const resetCadetForm = () => {
-    setCadetForm({ name: '', email: '', platoon: '10-1', squad: 1 });
+  const handleCreateNews = async () => {
+    try {
+      const newNews = await addNews(newsForm);
+      setNews([newNews, ...news]);
+      setShowNewsModal(false);
+      setNewsForm({
+        title: '',
+        content: '',
+        author: '',
+        is_main: false,
+        background_image_url: '',
+        images: []
+      });
+      success('Новость создана');
+    } catch (err) {
+      showError('Ошибка создания новости');
+    }
   };
 
-  const resetTaskForm = () => {
-    setTaskForm({
-      title: '',
-      description: '',
-      category: 'study',
-      points: 10,
-      difficulty: 'easy',
-      deadline: ''
-    });
+  const handleUpdateNews = async () => {
+    if (!editingNews) return;
+    
+    try {
+      await updateNews(editingNews.id, newsForm);
+      setNews(news.map(n => 
+        n.id === editingNews.id ? { ...n, ...newsForm } : n
+      ));
+      setShowNewsModal(false);
+      setEditingNews(null);
+      success('Новость обновлена');
+    } catch (err) {
+      showError('Ошибка обновления новости');
+    }
   };
 
-  const resetNewsForm = () => {
-    setNewsForm({
-      title: '',
-      content: '',
-      author: '',
-      is_main: false,
-      background_image_url: '',
-      images: []
-    });
+  const handleDeleteNews = async (id: string) => {
+    if (!confirm('Удалить новость?')) return;
+    
+    try {
+      await deleteNews(id);
+      setNews(news.filter(n => n.id !== id));
+      success('Новость удалена');
+    } catch (err) {
+      showError('Ошибка удаления новости');
+    }
   };
 
-  const resetAchievementForm = () => {
+  const openEditAchievement = (achievement: Achievement) => {
+    setEditingAchievement(achievement);
     setAchievementForm({
-      title: '',
-      description: '',
-      category: 'general',
-      icon: 'star',
-      color: 'from-blue-500 to-cyan-500'
+      title: achievement.title,
+      description: achievement.description,
+      category: achievement.category,
+      icon: achievement.icon,
+      color: achievement.color
     });
+    setShowAchievementModal(true);
   };
 
-  const resetScoreForm = () => {
-    setScoreForm({
-      cadetId: '',
-      category: 'study',
-      points: 0,
-      description: ''
-    });
-  };
-
-  // Edit handlers
-  const handleEditCadet = (cadet: Cadet) => {
-    setEditingCadet(cadet);
-    setCadetForm({
-      name: cadet.name,
-      email: cadet.email,
-      platoon: cadet.platoon,
-      squad: cadet.squad
-    });
-  };
-
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setTaskForm({
-      title: task.title,
-      description: task.description,
-      category: task.category,
-      points: task.points,
-      difficulty: task.difficulty,
-      deadline: task.deadline
-    });
-  };
-
-  const handleEditNews = (newsItem: News) => {
+  const openEditNews = (newsItem: News) => {
     setEditingNews(newsItem);
     setNewsForm({
       title: newsItem.title,
@@ -498,25 +354,30 @@ const AdminPage: React.FC = () => {
       background_image_url: newsItem.background_image_url || '',
       images: newsItem.images || []
     });
+    setShowNewsModal(true);
   };
 
-  const handleEditAchievement = (achievement: Achievement) => {
-    setEditingAchievement(achievement);
-    setAchievementForm({
-      title: achievement.title,
-      description: achievement.description,
-      category: achievement.category,
-      icon: achievement.icon,
-      color: achievement.color
-    });
-  };
+  const filteredCadets = cadets.filter(cadet => {
+    const matchesSearch = cadet.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPlatoon = filterPlatoon === 'all' || cadet.platoon === filterPlatoon;
+    return matchesSearch && matchesPlatoon;
+  });
 
-  if (!user || !isAdmin) {
+  const tabs = [
+    { key: 'overview', name: 'Обзор', icon: BarChart3 },
+    { key: 'cadets', name: 'Кадеты', icon: Users },
+    { key: 'achievements', name: 'Достижения', icon: Trophy },
+    { key: 'scores', name: 'Баллы', icon: Target },
+    { key: 'news', name: 'Новости', icon: FileText },
+    { key: 'tasks', name: 'Задания', icon: CheckSquare }
+  ];
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Доступ запрещен</h2>
+          <Shield className="h-16 w-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">Доступ запрещён</h2>
           <p className="text-blue-200">У вас нет прав администратора</p>
         </div>
       </div>
@@ -542,271 +403,209 @@ const AdminPage: React.FC = () => {
             variants={fadeInUp}
             initial="hidden"
             animate="visible"
-            className="text-center mb-16"
+            className="text-center mb-12"
           >
             <h1 className="text-6xl md:text-7xl font-display font-black mb-6 text-gradient text-glow">
-              Панель администратора
+              Админ-панель
             </h1>
             <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full mb-6"></div>
-            <p className="text-2xl text-white/90 max-w-3xl mx-auto text-shadow text-balance">
-              Полное управление системой кадетского корпуса
+            <p className="text-2xl text-white/90 max-w-3xl mx-auto text-shadow">
+              Управление системой рейтинга кадетов
             </p>
           </motion.div>
 
-          {/* Loading State */}
-          {loading && (
-            <div>
-              <LoadingSpinner message="Загрузка данных администратора..." />
-            </div>
-          )}
+          {loading && <LoadingSpinner message="Загрузка данных..." />}
 
-          {/* Error State */}
-          {error && (
-            <div className="text-center py-12">
-              <p className="text-red-400 mb-4">{error}</p>
-              <button 
-                onClick={fetchData}
-                className="btn-primary"
-              >
-                Попробовать снова
-              </button>
-            </div>
-          )}
-
-          {/* Tabs */}
-          {!loading && !error && (
+          {!loading && (
             <>
+              {/* Tabs */}
               <motion.div
                 variants={staggerContainer}
                 initial="hidden"
                 animate="visible"
-                className="flex justify-center mb-12"
+                className="flex flex-wrap justify-center gap-4 mb-12"
               >
-                <div className="glass-effect rounded-2xl p-2 shadow-2xl">
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {[
-                      { key: 'cadets', name: 'Кадеты', icon: Users },
-                      { key: 'tasks', name: 'Задания', icon: BookOpen },
-                      { key: 'news', name: 'Новости', icon: Newspaper },
-                      { key: 'achievements', name: 'Достижения', icon: Award },
-                      { key: 'analytics', name: 'Аналитика', icon: BarChart3 },
-                      { key: 'scores', name: 'Баллы', icon: DollarSign }
-                    ].map(({ key, name, icon: Icon }) => (
-                      <motion.button
-                        key={key}
-                        variants={staggerItem}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setActiveTab(key as any)}
-                        className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold text-base transition-all duration-500 ${
-                          activeTab === key
-                            ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
-                            : 'text-blue-300 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span>{name}</span>
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
+                {tabs.map(({ key, name, icon: Icon }) => (
+                  <motion.button
+                    key={key}
+                    variants={staggerItem}
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setActiveTab(key as any)}
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 ${
+                      activeTab === key
+                        ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
+                        : 'bg-white/10 text-white/80 hover:bg-white/20'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    <span>{name}</span>
+                  </motion.button>
+                ))}
               </motion.div>
+
+              {/* Overview Tab */}
+              {activeTab === 'overview' && analytics && (
+                <motion.div
+                  variants={staggerContainer}
+                  initial="hidden"
+                  animate="visible"
+                  className="space-y-8"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <motion.div variants={staggerItem} className="card-gradient from-blue-600 to-blue-800 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-3">
+                        <Users className="h-8 w-8 text-white" />
+                        <div>
+                          <div className="text-3xl font-black text-white">{analytics.totalCadets}</div>
+                          <div className="text-blue-200">Кадетов</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                    
+                    <motion.div variants={staggerItem} className="card-gradient from-green-600 to-green-800 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-3">
+                        <Trophy className="h-8 w-8 text-white" />
+                        <div>
+                          <div className="text-3xl font-black text-white">{analytics.totalAchievements}</div>
+                          <div className="text-green-200">Достижений</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                    
+                    <motion.div variants={staggerItem} className="card-gradient from-purple-600 to-purple-800 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-3">
+                        <CheckSquare className="h-8 w-8 text-white" />
+                        <div>
+                          <div className="text-3xl font-black text-white">{analytics.totalTasks}</div>
+                          <div className="text-purple-200">Заданий</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                    
+                    <motion.div variants={staggerItem} className="card-gradient from-yellow-600 to-yellow-800 p-6 rounded-2xl">
+                      <div className="flex items-center space-x-3">
+                        <TrendingUp className="h-8 w-8 text-white" />
+                        <div>
+                          <div className="text-3xl font-black text-white">
+                            {Math.round(analytics.avgScores.reduce((sum: number, score: any) => 
+                              sum + (score.study_score + score.discipline_score + score.events_score), 0
+                            ) / analytics.avgScores.length) || 0}
+                          </div>
+                          <div className="text-yellow-200">Средний балл</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <motion.div variants={staggerItem} className="card-hover p-8">
+                    <h2 className="text-3xl font-bold text-white mb-6">Быстрые действия</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <button
+                        onClick={() => setShowAchievementModal(true)}
+                        className="btn-primary flex items-center space-x-2"
+                      >
+                        <Plus className="h-5 w-5" />
+                        <span>Создать достижение</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowAwardModal(true)}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center space-x-2"
+                      >
+                        <Gift className="h-5 w-5" />
+                        <span>Присудить награду</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowScoreModal(true)}
+                        className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center space-x-2"
+                      >
+                        <Target className="h-5 w-5" />
+                        <span>Начислить баллы</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowNewsModal(true)}
+                        className="bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white px-6 py-3 rounded-xl font-bold transition-all duration-300 flex items-center space-x-2"
+                      >
+                        <FileText className="h-5 w-5" />
+                        <span>Создать новость</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
 
               {/* Cadets Tab */}
               {activeTab === 'cadets' && (
                 <motion.div
-                  variants={fadeInUp}
+                  variants={staggerContainer}
                   initial="hidden"
                   animate="visible"
                   className="space-y-8"
                 >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-4xl font-display font-bold text-white">Управление кадетами</h2>
-                    <button
-                      onClick={() => setShowAddCadet(true)}
-                      className="btn-primary"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Добавить кадета
-                    </button>
-                  </div>
+                  {/* Filters */}
+                  <motion.div variants={staggerItem} className="card-hover p-6">
+                    <div className="flex flex-col md:flex-row gap-4">
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300 h-4 w-4" />
+                        <input
+                          type="text"
+                          placeholder="Поиск кадета..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="input pl-10"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-300 h-4 w-4" />
+                        <select
+                          value={filterPlatoon}
+                          onChange={(e) => setFilterPlatoon(e.target.value)}
+                          className="input pl-10"
+                        >
+                          <option value="all">Все взводы</option>
+                          {Array.from(new Set(cadets.map(c => c.platoon))).map(platoon => (
+                            <option key={platoon} value={platoon}>{platoon} взвод</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </motion.div>
 
-                  <div className="grid gap-6">
-                    {cadets.map((cadet) => (
-                      <div key={cadet.id} className="card-hover p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold">
-                              #{cadet.rank}
-                            </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-white">{cadet.name}</h3>
-                              <p className="text-blue-300">{cadet.platoon} взвод, {cadet.squad} отделение</p>
-                              <p className="text-blue-400">{cadet.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-yellow-400">{cadet.total_score}</div>
-                              <div className="text-sm text-blue-300">баллов</div>
-                            </div>
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => handleEditCadet(cadet)}
-                                className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteCadet(cadet.id)}
-                                className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
+                  {/* Cadets List */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredCadets.map((cadet, index) => (
+                      <motion.div
+                        key={cadet.id}
+                        variants={staggerItem}
+                        whileHover={{ scale: 1.02, y: -5 }}
+                        className="card-hover p-6"
+                      >
+                        <div className="flex items-center space-x-4 mb-4">
+                          <img
+                            src={cadet.avatar_url || 'https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg?w=200'}
+                            alt={cadet.name}
+                            className="w-16 h-16 rounded-full object-cover border-2 border-blue-400"
+                          />
+                          <div>
+                            <h3 className="text-xl font-bold text-white">{cadet.name}</h3>
+                            <p className="text-blue-300">{cadet.platoon} взвод, {cadet.squad} отделение</p>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Tasks Tab */}
-              {activeTab === 'tasks' && (
-                <motion.div
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-8"
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-4xl font-display font-bold text-white">Управление заданиями</h2>
-                    <button
-                      onClick={() => setShowAddTask(true)}
-                      className="btn-primary"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Добавить задание
-                    </button>
-                  </div>
-
-                  <div className="grid gap-6">
-                    {tasks.map((task) => (
-                      <div key={task.id} className="card-hover p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-grow">
-                            <div className="flex items-center space-x-3 mb-3">
-                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                task.category === 'study' ? 'bg-blue-500/20 text-blue-300' :
-                                task.category === 'discipline' ? 'bg-red-500/20 text-red-300' :
-                                'bg-green-500/20 text-green-300'
-                              }`}>
-                                {task.category === 'study' ? 'Учёба' : 
-                                 task.category === 'discipline' ? 'Дисциплина' : 'Мероприятия'}
-                              </span>
-                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                task.difficulty === 'easy' ? 'bg-green-500/20 text-green-300' :
-                                task.difficulty === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                                'bg-red-500/20 text-red-300'
-                              }`}>
-                                {task.difficulty === 'easy' ? 'Легко' : 
-                                 task.difficulty === 'medium' ? 'Средне' : 'Сложно'}
-                              </span>
-                              <span className={`px-3 py-1 rounded-full text-sm font-bold ${
-                                task.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-300'
-                              }`}>
-                                {task.status === 'active' ? 'Активно' : 'Неактивно'}
-                              </span>
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">{task.title}</h3>
-                            <p className="text-blue-200 mb-3">{task.description}</p>
-                            <div className="flex items-center space-x-4 text-blue-300">
-                              <div className="flex items-center space-x-1">
-                                <Star className="h-4 w-4" />
-                                <span>{task.points} баллов</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Calendar className="h-4 w-4" />
-                                <span>До {new Date(task.deadline).toLocaleDateString('ru-RU')}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2 ml-4">
-                            <button
-                              onClick={() => handleEditTask(task)}
-                              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTask(task.id)}
-                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+                        
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-blue-200">Рейтинг:</span>
+                          <span className="text-2xl font-bold text-yellow-400">#{cadet.rank}</span>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {/* News Tab */}
-              {activeTab === 'news' && (
-                <motion.div
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-8"
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-4xl font-display font-bold text-white">Управление новостями</h2>
-                    <button
-                      onClick={() => setShowAddNews(true)}
-                      className="btn-primary"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Добавить новость
-                    </button>
-                  </div>
-
-                  <div className="grid gap-6">
-                    {news.map((newsItem) => (
-                      <div key={newsItem.id} className="card-hover p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-grow">
-                            <div className="flex items-center space-x-3 mb-3">
-                              {newsItem.is_main && (
-                                <span className="px-3 py-1 rounded-full text-sm font-bold bg-yellow-500/20 text-yellow-300">
-                                  Главная новость
-                                </span>
-                              )}
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">{newsItem.title}</h3>
-                            <p className="text-blue-200 mb-3 line-clamp-2">{newsItem.content}</p>
-                            <div className="flex items-center space-x-4 text-blue-300">
-                              <span>Автор: {newsItem.author}</span>
-                              <span>{new Date(newsItem.created_at).toLocaleDateString('ru-RU')}</span>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2 ml-4">
-                            <button
-                              onClick={() => handleEditNews(newsItem)}
-                              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteNews(newsItem.id)}
-                              className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
+                        
+                        <div className="flex justify-between items-center">
+                          <span className="text-blue-200">Баллы:</span>
+                          <span className="text-2xl font-bold text-white">{cadet.total_score}</span>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </motion.div>
@@ -815,159 +614,121 @@ const AdminPage: React.FC = () => {
               {/* Achievements Tab */}
               {activeTab === 'achievements' && (
                 <motion.div
-                  variants={fadeInUp}
+                  variants={staggerContainer}
                   initial="hidden"
                   animate="visible"
                   className="space-y-8"
                 >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-4xl font-display font-bold text-white">Управление достижениями</h2>
+                  <motion.div variants={staggerItem} className="flex justify-between items-center">
+                    <h2 className="text-3xl font-bold text-white">Управление достижениями</h2>
                     <button
-                      onClick={() => setShowAddAchievement(true)}
-                      className="btn-primary"
+                      onClick={() => setShowAchievementModal(true)}
+                      className="btn-primary flex items-center space-x-2"
                     >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Добавить достижение
+                      <Plus className="h-5 w-5" />
+                      <span>Создать достижение</span>
                     </button>
-                  </div>
+                  </motion.div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {achievements.map((achievement) => (
-                      <div key={achievement.id} className={`card-hover p-6 bg-gradient-to-r ${achievement.color}`}>
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                              <Trophy className="h-6 w-6 text-white" />
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-bold text-white">{achievement.title}</h3>
-                              <p className="text-white/80 text-sm">{achievement.category}</p>
+                    {achievements.map((achievement, index) => {
+                      const IconComponent = iconOptions.find(opt => opt.value === achievement.icon)?.icon || Star;
+                      
+                      return (
+                        <motion.div
+                          key={achievement.id}
+                          variants={staggerItem}
+                          whileHover={{ scale: 1.02, y: -5 }}
+                          className={`card-gradient ${achievement.color} p-6 rounded-2xl relative group`}
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <IconComponent className="h-8 w-8 text-white" />
+                            <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => openEditAchievement(achievement)}
+                                className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors"
+                              >
+                                <Edit className="h-4 w-4 text-white" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAchievement(achievement.id)}
+                                className="p-2 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-colors"
+                              >
+                                <Trash2 className="h-4 w-4 text-white" />
+                              </button>
                             </div>
                           </div>
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={() => handleEditAchievement(achievement)}
-                              className="p-1 bg-white/20 hover:bg-white/30 text-white rounded transition-colors"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAchievement(achievement.id)}
-                              className="p-1 bg-red-500/50 hover:bg-red-500/70 text-white rounded transition-colors"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-white/90 text-sm">{achievement.description}</p>
-                      </div>
-                    ))}
+                          
+                          <h3 className="text-xl font-bold text-white mb-2">{achievement.title}</h3>
+                          <p className="text-white/90 mb-4">{achievement.description}</p>
+                          <span className="text-white/70 text-sm">{achievement.category}</span>
+                        </motion.div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
 
-              {/* Analytics Tab */}
-              {activeTab === 'analytics' && analytics && (
+              {/* News Tab */}
+              {activeTab === 'news' && (
                 <motion.div
-                  variants={fadeInUp}
+                  variants={staggerContainer}
                   initial="hidden"
                   animate="visible"
                   className="space-y-8"
                 >
-                  <h2 className="text-4xl font-display font-bold text-white">Аналитика и статистика</h2>
-                  
-                  {/* Stats Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="card-hover p-6 text-center">
-                      <Users className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-                      <div className="text-3xl font-bold text-white mb-2">{analytics.totalCadets}</div>
-                      <div className="text-blue-300">Всего кадетов</div>
-                    </div>
-                    <div className="card-hover p-6 text-center">
-                      <BookOpen className="h-12 w-12 text-green-400 mx-auto mb-4" />
-                      <div className="text-3xl font-bold text-white mb-2">{analytics.totalTasks}</div>
-                      <div className="text-blue-300">Активных заданий</div>
-                    </div>
-                    <div className="card-hover p-6 text-center">
-                      <Award className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-                      <div className="text-3xl font-bold text-white mb-2">{analytics.totalAchievements}</div>
-                      <div className="text-blue-300">Достижений</div>
-                    </div>
-                  </div>
-
-                  {/* Top Cadets */}
-                  <div className="card-hover p-8">
-                    <h3 className="text-2xl font-bold text-white mb-6">Топ кадеты</h3>
-                    <div className="space-y-4">
-                      {analytics.topCadets.slice(0, 5).map((cadet: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-black font-bold">
-                              {index + 1}
-                            </div>
-                            <div>
-                              <div className="text-white font-semibold">{cadet.name}</div>
-                              <div className="text-blue-300 text-sm">{cadet.platoon} взвод</div>
-                            </div>
-                          </div>
-                          <div className="text-yellow-400 font-bold">{cadet.total_score} баллов</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Scores Tab */}
-              {activeTab === 'scores' && (
-                <motion.div
-                  variants={fadeInUp}
-                  initial="hidden"
-                  animate="visible"
-                  className="space-y-8"
-                >
-                  <div className="flex justify-between items-center">
-                    <h2 className="text-4xl font-display font-bold text-white">Управление баллами</h2>
+                  <motion.div variants={staggerItem} className="flex justify-between items-center">
+                    <h2 className="text-3xl font-bold text-white">Управление новостями</h2>
                     <button
-                      onClick={() => setShowAddScore(true)}
-                      className="btn-primary"
+                      onClick={() => setShowNewsModal(true)}
+                      className="btn-primary flex items-center space-x-2"
                     >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Добавить баллы
+                      <Plus className="h-5 w-5" />
+                      <span>Создать новость</span>
                     </button>
-                  </div>
+                  </motion.div>
 
-                  <div className="grid gap-6">
-                    {cadets.map((cadet) => (
-                      <div key={cadet.id} className="card-hover p-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-bold">
-                              #{cadet.rank}
+                  <div className="space-y-6">
+                    {news.map((newsItem, index) => (
+                      <motion.div
+                        key={newsItem.id}
+                        variants={staggerItem}
+                        whileHover={{ scale: 1.01, y: -2 }}
+                        className="card-hover p-6 group"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="text-2xl font-bold text-white">{newsItem.title}</h3>
+                              {newsItem.is_main && (
+                                <span className="bg-yellow-500 text-black px-2 py-1 rounded-full text-xs font-bold">
+                                  ГЛАВНАЯ
+                                </span>
+                              )}
                             </div>
-                            <div>
-                              <h3 className="text-xl font-bold text-white">{cadet.name}</h3>
-                              <p className="text-blue-300">{cadet.platoon} взвод, {cadet.squad} отделение</p>
+                            <p className="text-blue-200 mb-4 line-clamp-2">{newsItem.content}</p>
+                            <div className="flex items-center space-x-4 text-blue-300 text-sm">
+                              <span>Автор: {newsItem.author}</span>
+                              <span>{new Date(newsItem.created_at).toLocaleDateString('ru-RU')}</span>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-center">
-                              <div className="text-2xl font-bold text-yellow-400">{cadet.total_score}</div>
-                              <div className="text-sm text-blue-300">баллов</div>
-                            </div>
+                          
+                          <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => {
-                                setScoreForm({ ...scoreForm, cadetId: cadet.id });
-                                setShowAddScore(true);
-                              }}
-                              className="btn-primary"
+                              onClick={() => openEditNews(newsItem)}
+                              className="p-2 bg-blue-500/20 rounded-lg hover:bg-blue-500/30 transition-colors"
                             >
-                              <Gift className="h-4 w-4 mr-2" />
-                              Добавить баллы
+                              <Edit className="h-4 w-4 text-white" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteNews(newsItem.id)}
+                              className="p-2 bg-red-500/20 rounded-lg hover:bg-red-500/30 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4 text-white" />
                             </button>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 </motion.div>
@@ -975,357 +736,26 @@ const AdminPage: React.FC = () => {
             </>
           )}
 
-          {/* Modals */}
-          
-          {/* Add/Edit Cadet Modal */}
-          {(showAddCadet || editingCadet) && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="glass-effect rounded-3xl max-w-2xl w-full p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-3xl font-bold text-white">
-                    {editingCadet ? 'Редактировать кадета' : 'Добавить кадета'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowAddCadet(false);
-                      setEditingCadet(null);
-                      resetCadetForm();
-                    }}
-                    className="text-white hover:text-red-400 text-2xl"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-white font-bold mb-2">Имя</label>
-                    <input
-                      type="text"
-                      value={cadetForm.name}
-                      onChange={(e) => setCadetForm({...cadetForm, name: e.target.value})}
-                      className="input"
-                      placeholder="Фамилия Имя Отчество"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">Email</label>
-                    <input
-                      type="email"
-                      value={cadetForm.email}
-                      onChange={(e) => setCadetForm({...cadetForm, email: e.target.value})}
-                      className="input"
-                      placeholder="email@nkkk.ru"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-white font-bold mb-2">Взвод</label>
-                      <select
-                        value={cadetForm.platoon}
-                        onChange={(e) => setCadetForm({...cadetForm, platoon: e.target.value})}
-                        className="input"
-                      >
-                        {['7-1', '7-2', '8-1', '8-2', '9-1', '9-2', '10-1', '10-2', '11-1', '11-2'].map(p => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white font-bold mb-2">Отделение</label>
-                      <select
-                        value={cadetForm.squad}
-                        onChange={(e) => setCadetForm({...cadetForm, squad: parseInt(e.target.value)})}
-                        className="input"
-                      >
-                        {[1, 2, 3].map(s => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex space-x-4 mt-8">
-                  <button
-                    onClick={editingCadet ? handleUpdateCadet : handleAddCadet}
-                    disabled={!cadetForm.name || !cadetForm.email}
-                    className="flex-1 btn-primary disabled:opacity-50"
-                  >
-                    <Save className="h-5 w-5 mr-2" />
-                    {editingCadet ? 'Сохранить' : 'Добавить'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddCadet(false);
-                      setEditingCadet(null);
-                      resetCadetForm();
-                    }}
-                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add/Edit Task Modal */}
-          {(showAddTask || editingTask) && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="glass-effect rounded-3xl max-w-3xl w-full p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-3xl font-bold text-white">
-                    {editingTask ? 'Редактировать задание' : 'Добавить задание'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowAddTask(false);
-                      setEditingTask(null);
-                      resetTaskForm();
-                    }}
-                    className="text-white hover:text-red-400 text-2xl"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-white font-bold mb-2">Название</label>
-                    <input
-                      type="text"
-                      value={taskForm.title}
-                      onChange={(e) => setTaskForm({...taskForm, title: e.target.value})}
-                      className="input"
-                      placeholder="Название задания"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">Описание</label>
-                    <textarea
-                      value={taskForm.description}
-                      onChange={(e) => setTaskForm({...taskForm, description: e.target.value})}
-                      className="input resize-none"
-                      rows={4}
-                      placeholder="Подробное описание задания"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-white font-bold mb-2">Категория</label>
-                      <select
-                        value={taskForm.category}
-                        onChange={(e) => setTaskForm({...taskForm, category: e.target.value as any})}
-                        className="input"
-                      >
-                        <option value="study">Учёба</option>
-                        <option value="discipline">Дисциплина</option>
-                        <option value="events">Мероприятия</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white font-bold mb-2">Сложность</label>
-                      <select
-                        value={taskForm.difficulty}
-                        onChange={(e) => setTaskForm({...taskForm, difficulty: e.target.value as any})}
-                        className="input"
-                      >
-                        <option value="easy">Легко</option>
-                        <option value="medium">Средне</option>
-                        <option value="hard">Сложно</option>
-                      </select>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-white font-bold mb-2">Баллы</label>
-                      <input
-                        type="number"
-                        value={taskForm.points}
-                        onChange={(e) => setTaskForm({...taskForm, points: parseInt(e.target.value) || 0})}
-                        className="input"
-                        min="1"
-                        max="100"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">Дедлайн</label>
-                    <input
-                      type="date"
-                      value={taskForm.deadline}
-                      onChange={(e) => setTaskForm({...taskForm, deadline: e.target.value})}
-                      className="input"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex space-x-4 mt-8">
-                  <button
-                    onClick={editingTask ? handleUpdateTask : handleAddTask}
-                    disabled={!taskForm.title || !taskForm.description || !taskForm.deadline}
-                    className="flex-1 btn-primary disabled:opacity-50"
-                  >
-                    <Save className="h-5 w-5 mr-2" />
-                    {editingTask ? 'Сохранить' : 'Добавить'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddTask(false);
-                      setEditingTask(null);
-                      resetTaskForm();
-                    }}
-                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add/Edit News Modal */}
-          {(showAddNews || editingNews) && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="glass-effect rounded-3xl max-w-4xl w-full p-8 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-3xl font-bold text-white">
-                    {editingNews ? 'Редактировать новость' : 'Добавить новость'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowAddNews(false);
-                      setEditingNews(null);
-                      resetNewsForm();
-                    }}
-                    className="text-white hover:text-red-400 text-2xl"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-                
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-white font-bold mb-2">Заголовок</label>
-                    <input
-                      type="text"
-                      value={newsForm.title}
-                      onChange={(e) => setNewsForm({...newsForm, title: e.target.value})}
-                      className="input"
-                      placeholder="Заголовок новости"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">Содержание</label>
-                    <textarea
-                      value={newsForm.content}
-                      onChange={(e) => setNewsForm({...newsForm, content: e.target.value})}
-                      className="input resize-none"
-                      rows={6}
-                      placeholder="Текст новости"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-white font-bold mb-2">Автор</label>
-                      <input
-                        type="text"
-                        value={newsForm.author}
-                        onChange={(e) => setNewsForm({...newsForm, author: e.target.value})}
-                        className="input"
-                        placeholder="Имя автора"
-                      />
-                    </div>
-                    
-                    <div className="flex items-center space-x-3 pt-8">
-                      <input
-                        type="checkbox"
-                        id="is_main"
-                        checked={newsForm.is_main}
-                        onChange={(e) => setNewsForm({...newsForm, is_main: e.target.checked})}
-                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label htmlFor="is_main" className="text-white font-bold">
-                        Главная новость
-                      </label>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">URL фонового изображения</label>
-                    <input
-                      type="url"
-                      value={newsForm.background_image_url}
-                      onChange={(e) => setNewsForm({...newsForm, background_image_url: e.target.value})}
-                      className="input"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-white font-bold mb-2">Дополнительные изображения (по одному URL на строку)</label>
-                    <textarea
-                      value={newsForm.images.join('\n')}
-                      onChange={(e) => setNewsForm({...newsForm, images: e.target.value.split('\n').filter(url => url.trim())})}
-                      className="input resize-none"
-                      rows={3}
-                      placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex space-x-4 mt-8">
-                  <button
-                    onClick={editingNews ? handleUpdateNews : handleAddNews}
-                    disabled={!newsForm.title || !newsForm.content || !newsForm.author}
-                    className="flex-1 btn-primary disabled:opacity-50"
-                  >
-                    <Save className="h-5 w-5 mr-2" />
-                    {editingNews ? 'Сохранить' : 'Добавить'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddNews(false);
-                      setEditingNews(null);
-                      resetNewsForm();
-                    }}
-                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
-                  >
-                    Отмена
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Add/Edit Achievement Modal */}
-          {(showAddAchievement || editingAchievement) && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="glass-effect rounded-3xl max-w-2xl w-full p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-3xl font-bold text-white">
-                    {editingAchievement ? 'Редактировать достижение' : 'Добавить достижение'}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setShowAddAchievement(false);
-                      setEditingAchievement(null);
-                      resetAchievementForm();
-                    }}
-                    className="text-white hover:text-red-400 text-2xl"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
+          {/* Achievement Modal */}
+          {showAchievementModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => {
+                setShowAchievementModal(false);
+                setEditingAchievement(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="glass-effect rounded-3xl max-w-2xl w-full p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-3xl font-bold text-white mb-6">
+                  {editingAchievement ? 'Редактировать достижение' : 'Создать достижение'}
+                </h2>
                 
                 <div className="space-y-6">
                   <div>
@@ -1350,7 +780,7 @@ const AdminPage: React.FC = () => {
                     />
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-white font-bold mb-2">Категория</label>
                       <input
@@ -1369,72 +799,139 @@ const AdminPage: React.FC = () => {
                         onChange={(e) => setAchievementForm({...achievementForm, icon: e.target.value})}
                         className="input"
                       >
-                        <option value="star">Звезда</option>
-                        <option value="trophy">Трофей</option>
-                        <option value="medal">Медаль</option>
-                        <option value="award">Награда</option>
-                        <option value="crown">Корона</option>
-                        <option value="shield">Щит</option>
+                        {iconOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-white font-bold mb-2">Цвет</label>
+                      <select
+                        value={achievementForm.color}
+                        onChange={(e) => setAchievementForm({...achievementForm, color: e.target.value})}
+                        className="input"
+                      >
+                        {colorOptions.map(option => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
-                  
+                </div>
+                
+                <div className="flex space-x-4 mt-8">
+                  <button
+                    onClick={editingAchievement ? handleUpdateAchievement : handleCreateAchievement}
+                    className="flex-1 btn-primary flex items-center justify-center space-x-2"
+                  >
+                    <Save className="h-5 w-5" />
+                    <span>{editingAchievement ? 'Обновить' : 'Создать'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowAchievementModal(false);
+                      setEditingAchievement(null);
+                    }}
+                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors flex items-center space-x-2"
+                  >
+                    <X className="h-5 w-5" />
+                    <span>Отмена</span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Award Achievement Modal */}
+          {showAwardModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowAwardModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="glass-effect rounded-3xl max-w-2xl w-full p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-3xl font-bold text-white mb-6">Присудить достижение</h2>
+                
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-white font-bold mb-2">Цветовая схема</label>
+                    <label className="block text-white font-bold mb-2">Кадет</label>
                     <select
-                      value={achievementForm.color}
-                      onChange={(e) => setAchievementForm({...achievementForm, color: e.target.value})}
+                      value={selectedCadetForAward}
+                      onChange={(e) => setSelectedCadetForAward(e.target.value)}
                       className="input"
                     >
-                      <option value="from-blue-500 to-cyan-500">Синий</option>
-                      <option value="from-green-500 to-emerald-500">Зеленый</option>
-                      <option value="from-yellow-500 to-orange-500">Желтый</option>
-                      <option value="from-red-500 to-pink-500">Красный</option>
-                      <option value="from-purple-500 to-indigo-500">Фиолетовый</option>
+                      <option value="">Выберите кадета</option>
+                      {cadets.map(cadet => (
+                        <option key={cadet.id} value={cadet.id}>
+                          {cadet.name} ({cadet.platoon} взвод)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-white font-bold mb-2">Достижение</label>
+                    <select
+                      value={selectedAchievementForAward}
+                      onChange={(e) => setSelectedAchievementForAward(e.target.value)}
+                      className="input"
+                    >
+                      <option value="">Выберите достижение</option>
+                      {achievements.map(achievement => (
+                        <option key={achievement.id} value={achievement.id}>
+                          {achievement.title}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
                 
                 <div className="flex space-x-4 mt-8">
                   <button
-                    onClick={editingAchievement ? handleUpdateAchievement : handleAddAchievement}
-                    disabled={!achievementForm.title || !achievementForm.description}
-                    className="flex-1 btn-primary disabled:opacity-50"
+                    onClick={handleAwardAchievement}
+                    disabled={!selectedCadetForAward || !selectedAchievementForAward}
+                    className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <Save className="h-5 w-5 mr-2" />
-                    {editingAchievement ? 'Сохранить' : 'Добавить'}
+                    <Gift className="h-5 w-5" />
+                    <span>Присудить</span>
                   </button>
                   <button
-                    onClick={() => {
-                      setShowAddAchievement(false);
-                      setEditingAchievement(null);
-                      resetAchievementForm();
-                    }}
+                    onClick={() => setShowAwardModal(false)}
                     className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
                   >
                     Отмена
                   </button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           )}
 
-          {/* Add Score Modal */}
-          {showAddScore && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="glass-effect rounded-3xl max-w-2xl w-full p-8">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-3xl font-bold text-white">Добавить баллы</h3>
-                  <button
-                    onClick={() => {
-                      setShowAddScore(false);
-                      resetScoreForm();
-                    }}
-                    className="text-white hover:text-red-400 text-2xl"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
+          {/* Score Modal */}
+          {showScoreModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowScoreModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="glass-effect rounded-3xl max-w-2xl w-full p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-3xl font-bold text-white mb-6">Начислить баллы</h2>
                 
                 <div className="space-y-6">
                   <div>
@@ -1447,13 +944,13 @@ const AdminPage: React.FC = () => {
                       <option value="">Выберите кадета</option>
                       {cadets.map(cadet => (
                         <option key={cadet.id} value={cadet.id}>
-                          {cadet.name} ({cadet.platoon} взвод, {cadet.squad} отделение)
+                          {cadet.name} ({cadet.platoon} взвод)
                         </option>
                       ))}
                     </select>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-white font-bold mb-2">Категория</label>
                       <select
@@ -1474,7 +971,7 @@ const AdminPage: React.FC = () => {
                         value={scoreForm.points}
                         onChange={(e) => setScoreForm({...scoreForm, points: parseInt(e.target.value) || 0})}
                         className="input"
-                        placeholder="Количество баллов (может быть отрицательным)"
+                        placeholder="Количество баллов"
                       />
                     </div>
                   </div>
@@ -1486,7 +983,7 @@ const AdminPage: React.FC = () => {
                       onChange={(e) => setScoreForm({...scoreForm, description: e.target.value})}
                       className="input resize-none"
                       rows={3}
-                      placeholder="За что начисляются/списываются баллы"
+                      placeholder="За что начисляются баллы"
                     />
                   </div>
                 </div>
@@ -1494,24 +991,138 @@ const AdminPage: React.FC = () => {
                 <div className="flex space-x-4 mt-8">
                   <button
                     onClick={handleAddScore}
-                    disabled={!scoreForm.cadetId || !scoreForm.description || scoreForm.points === 0}
-                    className="flex-1 btn-primary disabled:opacity-50"
+                    disabled={!scoreForm.cadetId || !scoreForm.description}
+                    className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
-                    <Save className="h-5 w-5 mr-2" />
-                    Добавить баллы
+                    <Target className="h-5 w-5" />
+                    <span>Начислить</span>
                   </button>
                   <button
-                    onClick={() => {
-                      setShowAddScore(false);
-                      resetScoreForm();
-                    }}
+                    onClick={() => setShowScoreModal(false)}
                     className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors"
                   >
                     Отмена
                   </button>
                 </div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* News Modal */}
+          {showNewsModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => {
+                setShowNewsModal(false);
+                setEditingNews(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="glass-effect rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-8"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-3xl font-bold text-white mb-6">
+                  {editingNews ? 'Редактировать новость' : 'Создать новость'}
+                </h2>
+                
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-white font-bold mb-2">Заголовок</label>
+                    <input
+                      type="text"
+                      value={newsForm.title}
+                      onChange={(e) => setNewsForm({...newsForm, title: e.target.value})}
+                      className="input"
+                      placeholder="Заголовок новости"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-white font-bold mb-2">Содержание</label>
+                    <textarea
+                      value={newsForm.content}
+                      onChange={(e) => setNewsForm({...newsForm, content: e.target.value})}
+                      className="input resize-none"
+                      rows={6}
+                      placeholder="Текст новости"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-white font-bold mb-2">Автор</label>
+                      <input
+                        type="text"
+                        value={newsForm.author}
+                        onChange={(e) => setNewsForm({...newsForm, author: e.target.value})}
+                        className="input"
+                        placeholder="Имя автора"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 pt-8">
+                      <input
+                        type="checkbox"
+                        id="is_main"
+                        checked={newsForm.is_main}
+                        onChange={(e) => setNewsForm({...newsForm, is_main: e.target.checked})}
+                        className="w-5 h-5 text-blue-600 rounded"
+                      />
+                      <label htmlFor="is_main" className="text-white font-bold">
+                        Главная новость
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-white font-bold mb-2">Фоновое изображение (URL)</label>
+                    <input
+                      type="url"
+                      value={newsForm.background_image_url}
+                      onChange={(e) => setNewsForm({...newsForm, background_image_url: e.target.value})}
+                      className="input"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-white font-bold mb-2">Дополнительные изображения (по одному URL на строку)</label>
+                    <textarea
+                      value={newsForm.images.join('\n')}
+                      onChange={(e) => setNewsForm({...newsForm, images: e.target.value.split('\n').filter(url => url.trim())})}
+                      className="input resize-none"
+                      rows={4}
+                      placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex space-x-4 mt-8">
+                  <button
+                    onClick={editingNews ? handleUpdateNews : handleCreateNews}
+                    disabled={!newsForm.title || !newsForm.content || !newsForm.author}
+                    className="flex-1 btn-primary flex items-center justify-center space-x-2 disabled:opacity-50"
+                  >
+                    <Save className="h-5 w-5" />
+                    <span>{editingNews ? 'Обновить' : 'Создать'}</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowNewsModal(false);
+                      setEditingNews(null);
+                    }}
+                    className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-colors flex items-center space-x-2"
+                  >
+                    <X className="h-5 w-5" />
+                    <span>Отмена</span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </div>
       </div>
