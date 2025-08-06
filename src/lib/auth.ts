@@ -32,7 +32,7 @@ const verifyPassword = (password: string, hash: string): boolean => {
 export const authenticateUser = async (credentials: LoginCredentials): Promise<AuthUser | null> => {
   try {
     const { data: users, error } = await supabase
-      .from('auth_users')
+      .from('users')
       .select('*')
       .eq('email', credentials.email)
       .limit(1);
