@@ -88,7 +88,7 @@ export interface Task {
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
   deadline: string;
-  is_active: boolean;
+  status: string;
   created_at: string;
 }
 
@@ -489,7 +489,7 @@ export const getTasks = async (): Promise<Task[]> => {
     const { data, error } = await supabase
       .from('tasks')
       .select('*')
-      .eq('is_active', true)
+      .eq('status', 'active')
       .order('deadline', { ascending: true });
     
     if (error) {
@@ -517,7 +517,7 @@ const getMockTasks = (): Task[] => {
       difficulty: 'medium' as const,
       points: 15,
       deadline: '2024-12-31T23:59:59Z',
-      is_active: true,
+      status: 'active',
       created_at: '2024-03-01T10:00:00Z'
     },
     {
@@ -528,7 +528,7 @@ const getMockTasks = (): Task[] => {
       difficulty: 'easy' as const,
       points: 10,
       deadline: '2024-12-25T23:59:59Z',
-      is_active: true,
+      status: 'active',
       created_at: '2024-03-01T10:00:00Z'
     },
     {
@@ -539,7 +539,7 @@ const getMockTasks = (): Task[] => {
       difficulty: 'hard' as const,
       points: 25,
       deadline: '2024-12-30T23:59:59Z',
-      is_active: true,
+      status: 'active',
       created_at: '2024-03-01T10:00:00Z'
     }
   ];
@@ -550,6 +550,7 @@ const getMockTasks = (): Task[] => {
 
 export const getTaskSubmissions = async (cadetId: string): Promise<TaskSubmission[]> => {
   try {
+    console.log('Fetching task submissions for cadet:', cadetId);
     const { data, error } = await supabase
       .from('task_submissions')
       .select('*')
@@ -557,9 +558,11 @@ export const getTaskSubmissions = async (cadetId: string): Promise<TaskSubmissio
     
     if (error) {
       console.error('Supabase error:', error);
+      // Возвращаем пустой массив при ошибке, чтобы не блокировать отображение заданий
       return [];
     }
     
+    console.log('Task submissions data:', data);
     return data || [];
   } catch (error) {
     console.error('Error fetching task submissions:', error);

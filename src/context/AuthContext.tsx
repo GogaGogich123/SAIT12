@@ -57,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authUser.role === 'cadet') {
         // Получаем данные кадета
         const cadetData = await getCadetByAuthId(authUser.id);
+        console.log('Cadet data found:', cadetData);
         
         if (cadetData) {
           const userData = {
@@ -67,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             squad: cadetData.squad,
             cadetId: cadetData.id
           };
+          console.log('Setting user data:', userData);
           setUser(userData);
           localStorage.setItem('auth_user', JSON.stringify(userData));
           return true;

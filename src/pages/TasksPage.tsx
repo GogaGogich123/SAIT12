@@ -53,16 +53,22 @@ const TasksPage: React.FC = () => {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!user?.cadetId) return;
+      if (!user?.cadetId) {
+        console.log('No cadet ID found, user:', user);
+        return;
+      }
       
       try {
         setLoading(true);
+        console.log('Fetching tasks for cadet:', user.cadetId);
         
         // Получаем все активные задания
         const tasksData = await getTasks();
+        console.log('Tasks data received:', tasksData);
         
         // Получаем сдачи заданий текущего кадета
         const submissionsData = await getTaskSubmissions(user.cadetId);
+        console.log('Submissions data received:', submissionsData);
         
         // Объединяем данные
         const tasksWithSubmissions: TaskWithSubmission[] = tasksData.map(task => {
@@ -74,6 +80,7 @@ const TasksPage: React.FC = () => {
           };
         });
         
+        console.log('Final tasks with submissions:', tasksWithSubmissions);
         setTasks(tasksWithSubmissions);
       } catch (err) {
         console.error('Error fetching tasks:', err);
@@ -197,13 +204,23 @@ const TasksPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen flex items-center justify-center relative overflow-hidden"
+      >
+        <div className="absolute inset-0">
+          <AnimatedSVGBackground />
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-blue-900/95 to-slate-800/95 z-10"></div>
+        <div className="relative z-20">
         <div className="text-center">
           <AlertCircle className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Требуется авторизация</h2>
           <p className="text-blue-200">Войдите в систему, чтобы просматривать и выполнять задания</p>
         </div>
-      </div>
+        </div>
+      </motion.div>
     );
   }
 
@@ -240,13 +257,19 @@ const TasksPage: React.FC = () => {
         {/* Loading State */}
         {loading && (
           <div>
-            <LoadingSpinner message="Загрузка заданий..." />
+            <LoadingSpinner message="Загрузка заданий..." size="lg" />
           </div>
         )}
 
         {/* Error State */}
         {error && (
-          <div className="text-center py-12">
+          <motion.div
+            variants={fadeInUp}
+            initial="hidden"
+            animate="visible"
+            className="text-center py-12"
+          >
+            <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
             <p className="text-red-400 mb-4">{error}</p>
             <button 
               onClick={() => window.location.reload()}
@@ -254,7 +277,21 @@ const TasksPage: React.FC = () => {
             >
               Попробовать снова
             </button>
-          </div>
+          </motion.div>
+        )}
+
+        {/* No Tasks State */}
+        {!loading && !error && sortedTasks.length === 0 && (
+          <motion.div
+            variants={fadeInUp}
+            initial="hidden"
+            animate="visible"
+            className="text-center py-12"
+          >
+            <CheckSquare className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-2">Заданий пока нет</h2>
+            <p className="text-blue-200">Новые задания появятся здесь, когда они будут добавлены</p>
+          </motion.div>
         )}
 
         {/* Categories */}
