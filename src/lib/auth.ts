@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { handleSupabaseError, handleAuthError, safeLog } from '../utils/errorHandler';
 
 export interface AuthUser {
   id: string;
@@ -12,10 +13,16 @@ export interface LoginCredentials {
   password: string;
 }
 
+export interface CreateUserData {
+  email: string;
+  name: string;
+  role: 'admin' | 'cadet';
+}
+
 // Аутентификация через Supabase Auth
 export const authenticateUser = async (credentials: LoginCredentials): Promise<AuthUser | null> => {
   try {
-    console.log('Attempting to authenticate:', credentials.email);
+    safeLog('Attempting to authenticate user', { email: credentials.email });
     
     // Используем Supabase Auth для входа
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -24,12 +31,12 @@ export const authenticateUser = async (credentials: LoginCredentials): Promise<A
     });
 
     if (authError) {
-      console.error('Supabase auth error:', authError);
+      const error = handleAuthError(authError);
+      safeLog('Authentication failed', error);
       return null;
     }
 
     if (!authData.user) {
-      console.log('No user returned from auth');
       return null;
     }
 
@@ -43,19 +50,27 @@ export const authenticateUser = async (credentials: LoginCredentials): Promise<A
       .single();
 
     if (userError) {
-      console.error('Error fetching user data:', userError);
-      // Если нет записи в таблице users, создаем базовую запись
-      const newUser: AuthUser = {
-        id: authData.user.id,
-        email: authData.user.email!,
-        role: 'cadet', // По умолчанию кадет
-        name: authData.user.email!.split('@')[0]
-      };
-      return newUser;
+      const error = handleSupabaseError(userError);
+      safeLog('User data not found, creating new user', error);
+      
+      // Если нет записи в таблице users, создаем её в БД
+      try {
+        const newUserData = {
+          id: authData.user.id,
+          email: authData.user.email!,
+          role: 'cadet' as const,
+          name: authData.user.email!.split('@')[0]
+        };
+        
+        await createUserInDatabase(newUserData);
+        return newUserData;
+      } catch (createError) {
+        safeLog('Failed to create user in database', createError);
+        return null;
+      }
     }
 
-    console.log('User data found:', userData);
-
+    safeLog('User authentication successful', { id: userData.id, role: userData.role });
     return {
       id: authData.user.id,
       email: userData.email,
@@ -64,15 +79,32 @@ export const authenticateUser = async (credentials: LoginCredentials): Promise<A
     };
 
   } catch (error) {
-    console.error('Authentication error:', error);
+    safeLog('Authentication error', error);
     return null;
+  }
+};
+
+// Создание пользователя в базе данных
+const createUserInDatabase = async (userData: CreateUserData & { id: string }): Promise<void> => {
+  const { error } = await supabase
+    .from('users')
+    .insert([{
+      id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      role: userData.role
+    }]);
+  
+  if (error) {
+    safeLog('Error inserting user into database', error);
+    throw error;
   }
 };
 
 // Получение данных кадета по ID пользователя
 export const getCadetByAuthId = async (authUserId: string) => {
   try {
-    console.log('Getting cadet by auth ID:', authUserId);
+    safeLog('Getting cadet by auth ID', { authUserId });
     
     const { data, error } = await supabase
       .from('cadets')
@@ -81,14 +113,13 @@ export const getCadetByAuthId = async (authUserId: string) => {
       .maybeSingle();
     
     if (error && error.code !== 'PGRST116') {
-      console.error('Supabase error:', error);
+      safeLog('Error fetching cadet data', handleSupabaseError(error));
       return null;
     }
     
-    console.log('Cadet data:', data);
     return data;
   } catch (error) {
-    console.error('Error fetching cadet by auth ID:', error);
+    safeLog('Error fetching cadet by auth ID', error);
     return null;
   }
 };
@@ -98,10 +129,10 @@ export const signOut = async () => {
   try {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Sign out error:', error);
+      safeLog('Sign out error', error);
     }
   } catch (error) {
-    console.error('Sign out error:', error);
+    safeLog('Sign out error', error);
   }
 };
 
@@ -122,7 +153,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       .single();
 
     if (error) {
-      console.error('Error fetching user data:', error);
+      safeLog('Error fetching current user data', handleSupabaseError(error));
       return null;
     }
 
@@ -133,7 +164,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       name: userData.name
     };
   } catch (error) {
-    console.error('Error getting current user:', error);
+    safeLog('Error getting current user', error);
     return null;
   }
 };

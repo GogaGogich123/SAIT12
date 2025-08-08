@@ -7,6 +7,7 @@ import NotificationToast from './components/NotificationToast';
 import HomePage from './pages/HomePage';
 import RatingPage from './pages/RatingPage';
 import CadetProfile from './pages/CadetProfile';
+import ProtectedRoute from './components/ProtectedRoute';
 import NewsPage from './pages/NewsPage';
 import TasksPage from './pages/TasksPage';
 import LoginPage from './pages/LoginPage';
@@ -36,12 +37,28 @@ const AppContent: React.FC = () => {
         <AnimatePresence mode="wait">
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/rating" element={<RatingPage />} />
-            <Route path="/cadet/:id" element={<CadetProfile />} />
+            <Route path="/rating" element={
+              <ProtectedRoute requireAuth={false}>
+                <RatingPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/cadet/:id" element={
+              <ProtectedRoute>
+                <CadetProfile />
+              </ProtectedRoute>
+            } />
             <Route path="/news" element={<NewsPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/tasks" element={
+              <ProtectedRoute>
+                <TasksPage />
+              </ProtectedRoute>
+            } />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin" element={
+              <ProtectedRoute requireAdmin>
+                <AdminPage />
+              </ProtectedRoute>
+            } />
           </Routes>
         </AnimatePresence>
       </div>

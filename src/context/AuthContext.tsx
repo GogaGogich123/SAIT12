@@ -78,22 +78,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (authUser.role === 'cadet') {
         // Получаем данные кадета
         const cadetData = await getCadetByAuthId(authUser.id);
-        console.log('Cadet data found:', cadetData);
         
-        if (cadetData) {
+        if (!cadetData) {
+          console.warn('No cadet profile found for user:', authUser.id);
+          // Для кадета без профиля создаем базовые данные пользователя
           const userData = {
             id: authUser.id,
             name: authUser.name,
-            role: 'cadet' as const,
-            platoon: cadetData.platoon,
-            squad: cadetData.squad,
-            cadetId: cadetData.id
+            role: 'cadet' as const
           };
-          console.log('Setting user data:', userData);
           setUser(userData);
           localStorage.setItem('auth_user', JSON.stringify(userData));
           return true;
         }
+        
+        // Если профиль кадета найден, используем полные данные
+        const userData = {
+          id: authUser.id,
+          name: authUser.name,
+          role: 'cadet' as const,
+          platoon: cadetData.platoon,
+          squad: cadetData.squad,
+          cadetId: cadetData.id
+        };
+        console.log('Setting cadet user data:', userData);
+        setUser(userData);
+        localStorage.setItem('auth_user', JSON.stringify(userData));
+        return true;
       } else if (authUser.role === 'admin') {
         const userData = {
           id: authUser.id,

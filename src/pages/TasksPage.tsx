@@ -59,7 +59,7 @@ const TasksPage: React.FC = () => {
       }
       
       // Для кадетов используем cadetId, для админов - id
-      const cadetId = user.role === 'cadet' ? (user.cadetId || user.id) : null;
+      const cadetId = user.role === 'cadet' ? (user.cadetId || user.id) : user.id;
       
       if (user.role === 'cadet' && !cadetId) {
         console.log('No cadet ID found for cadet user:', user);
@@ -77,7 +77,7 @@ const TasksPage: React.FC = () => {
         let submissionsData = [];
         
         // Получаем сдачи заданий только для кадетов
-        if (user.role === 'cadet' && cadetId) {
+        if (cadetId) {
           submissionsData = await getTaskSubmissions(cadetId);
           console.log('Submissions data received:', submissionsData);
         }
