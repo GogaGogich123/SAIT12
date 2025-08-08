@@ -705,33 +705,20 @@ const getMockAchievements = (): Achievement[] => {
       color: 'from-blue-500 to-blue-700'
     },
     {
-      } else {
-    // Создаем новые баллы
-    const { error } = await supabase
-      .from('scores')
-      .insert([{ cadet_id: cadetId, ...newScores }]);
-    
-    if (error) throw error;
-  } else {
-    // Создаем новые баллы
-    const { error } = await supabase
-      .from('scores')
-      .insert([{ cadet_id: cadetId, ...newScores }]);
-    
-    if (error) throw error;
-  }
-  ]
-  
-  // Обновляем общий счет кадета
-  const { error: updateCadetError } = await supabase
-    .from('cadets')
-    .update({ 
-      total_score: totalScore,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', cadetId);
-  
-  if (updateCadetError) throw updateCadetError;
+      id: 'ach-2',
+      title: 'Лидер дисциплины',
+      description: 'За образцовое поведение и дисциплину',
+      icon: 'Shield',
+      color: 'from-red-500 to-red-700'
+    },
+    {
+      id: 'ach-3',
+      title: 'Активист мероприятий',
+      description: 'За активное участие в корпусных мероприятиях',
+      icon: 'Trophy',
+      color: 'from-yellow-500 to-yellow-700'
+    }
+  ];
 };
 
 // Mock data functions for fallback
