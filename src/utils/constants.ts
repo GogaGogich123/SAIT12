@@ -54,4 +54,22 @@ export const DEFAULTS = {
   ITEMS_PER_PAGE: 20,
   DEBOUNCE_DELAY: 300,
   THROTTLE_DELAY: 100,
+  VIRTUAL_LIST_ITEM_HEIGHT: 120,
+  VIRTUAL_LIST_OVERSCAN: 3,
+} as const;
+// Performance settings
+export const PERFORMANCE = {
+  ENABLE_VIRTUALIZATION: true,
+  ENABLE_WEB_WORKERS: true,
+  ENABLE_IMAGE_OPTIMIZATION: true,
+  ENABLE_LAZY_LOADING: true,
+  MAX_CONCURRENT_REQUESTS: 6,
+} as const;
+
+// Feature flags
+export const FEATURES = {
+  ENABLE_ANALYTICS: false,
+  ENABLE_PUSH_NOTIFICATIONS: false,
+  ENABLE_OFFLINE_MODE: false,
+  ENABLE_PWA: false,
 } as const;

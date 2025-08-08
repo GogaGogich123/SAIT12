@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { cache } from './cache';
 import { CACHE_KEYS, CACHE_DURATION } from '../utils/constants';
+import { throttle } from '../utils/performance';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -105,7 +106,7 @@ export interface TaskSubmission {
 }
 
 // Functions
-export const getCadets = async (): Promise<Cadet[]> => {
+export const getCadets = throttle(async (): Promise<Cadet[]> => {
   // Проверяем кэш
   const cached = cache.get<Cadet[]>(CACHE_KEYS.CADETS);
   if (cached) {
@@ -124,9 +125,9 @@ export const getCadets = async (): Promise<Cadet[]> => {
   cache.set(CACHE_KEYS.CADETS, result, CACHE_DURATION.MEDIUM);
   
   return result;
-};
+}, 1000);
 
-export const getCadetById = async (id: string): Promise<Cadet> => {
+export const getCadetById = throttle(async (id: string): Promise<Cadet> => {
   const cacheKey = `${CACHE_KEYS.CADETS}_${id}`;
   const cached = cache.get<Cadet>(cacheKey);
   if (cached) {
@@ -160,9 +161,9 @@ export const getCadetById = async (id: string): Promise<Cadet> => {
     if (!mockCadet) throw new Error('Cadet not found');
     return mockCadet;
   }
-};
+}, 500);
 
-export const getCadetScores = async (cadetId: string): Promise<Score | null> => {
+export const getCadetScores = throttle(async (cadetId: string): Promise<Score | null> => {
   try {
     const { data, error } = await supabase
       .from('scores')
@@ -180,7 +181,7 @@ export const getCadetScores = async (cadetId: string): Promise<Score | null> => 
     console.error('Error fetching scores:', error);
     return getMockScore(cadetId);
   }
-};
+}, 500);
 
 const getMockScore = (cadetId: string): Score | null => {
   const mockScores: { [key: string]: Score } = {
