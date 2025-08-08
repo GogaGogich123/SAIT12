@@ -29,13 +29,21 @@
 ## Тестовые аккаунты
 
 - **Администратор**: admin@nkkk.ru / admin123
-- **Кадет**: petrov@nkkk.ru / test123
+
+**Кадеты:**
+- **Петров А.В.**: petrov.alexey@nkkk.ru / cadet123
+- **Сидоров Д.А.**: sidorov.dmitry@nkkk.ru / cadet123  
+- **Козлов М.С.**: kozlov.mikhail@nkkk.ru / cadet123
+- **Волков А.Н.**: volkov.andrey@nkkk.ru / cadet123
+- **Морозов В.И.**: morozov.vladislav@nkkk.ru / cadet123
 
 **Примечание**: Для работы тестовых аккаунтов необходимо:
 1. Создать пользователей в Supabase Auth
 2. Убедиться, что записи в таблице `users` созданы автоматически
 3. Для кадетов - создать соответствующие записи в таблице `cadets`
 4. Связать записи через поле `auth_user_id`
+
+Подробные инструкции см. в файле `docs/login-credentials.md`
 
 ## Функциональность
 
