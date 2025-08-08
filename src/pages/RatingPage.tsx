@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { Search, Filter, Trophy, Medal, Target, Users, TrendingUp, TrendingDown } from 'lucide-react';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
-import VirtualizedCadetList from '../components/VirtualizedCadetList';
+import LazyImage from '../components/LazyImage';
 import { getCadets, getCadetScores, type Cadet, type Score } from '../lib/supabase';
 import { useDebounce } from '../hooks/useDebounce';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useSEO } from '../hooks/useSEO';
-import { useWebWorker } from '../utils/webWorkers';
+import { DEFAULTS, IMAGE_SIZES } from '../utils/constants';
+import { optimizeImageUrl } from '../utils/performance';
 import { fadeInUp, staggerContainer, staggerItem } from '../utils/animations';
 
 interface CadetWithScores extends Cadet {
@@ -35,19 +37,11 @@ const RatingPage: React.FC = () => {
   const [cadets, setCadets] = useState<CadetWithScores[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { postMessage, cleanup } = useWebWorker();
   
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
   const platoons = ['7-1', '7-2', '8-1', '8-2', '9-1', '9-2', '10-1', '10-2', '11-1', '11-2'];
   const squads = [1, 2, 3];
-
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, [cleanup]);
 
   useEffect(() => {
     const fetchCadets = async () => {
@@ -96,46 +90,6 @@ const RatingPage: React.FC = () => {
     fetchCadets();
   }, []);
 
-  useEffect(() => {
-    const filterAndSortCadets = async () => {
-      if (cadets.length === 0) return;
-      
-      setIsProcessing(true);
-      
-      try {
-        // Используем Web Worker для фильтрации
-        const filteredCadets = await postMessage('FILTER_CADETS', {
-          cadets,
-          searchTerm: debouncedSearchTerm,
-          platoon: selectedPlatoon,
-          squad: selectedSquad
-        }) as CadetWithScores[];
-        
-        // Сортируем по выбранной категории
-        const sortedCadets = await postMessage('SORT_CADETS', {
-          cadets: filteredCadets,
-          sortBy: selectedCategory === 'total' ? 'score' : selectedCategory
-        }) as CadetWithScores[];
-        
-        setFilteredCadets(sortedCadets);
-      } catch (error) {
-        console.error('Error processing cadets:', error);
-        // Fallback к синхронной обработке
-        const filtered = cadets.filter(cadet => {
-          const matchesSearch = cadet.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
-          const matchesPlatoon = selectedPlatoon === 'all' || cadet.platoon === selectedPlatoon;
-          const matchesSquad = selectedSquad === 'all' || cadet.squad.toString() === selectedSquad;
-          return matchesSearch && matchesPlatoon && matchesSquad;
-        });
-        setFilteredCadets(filtered);
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-    
-    filterAndSortCadets();
-  }, [cadets, debouncedSearchTerm, selectedPlatoon, selectedSquad, selectedCategory, postMessage]);
-
   const categories = [
     { key: 'total', name: 'Общий рейтинг', icon: Trophy, color: 'from-yellow-500 to-orange-500' },
     { key: 'study', name: 'Учёба', icon: Medal, color: 'from-blue-500 to-cyan-500' },
@@ -143,7 +97,32 @@ const RatingPage: React.FC = () => {
     { key: 'events', name: 'Мероприятия', icon: Users, color: 'from-green-500 to-emerald-500' },
   ];
 
-  const [filteredCadets, setFilteredCadets] = useState<CadetWithScores[]>([]);
+  const filteredCadets = cadets.filter(cadet => {
+    const matchesSearch = cadet.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+    const matchesPlatoon = selectedPlatoon === 'all' || cadet.platoon === selectedPlatoon;
+    const matchesSquad = selectedSquad === 'all' || cadet.squad.toString() === selectedSquad;
+    return matchesSearch && matchesPlatoon && matchesSquad;
+  });
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return `#${rank}`;
+  };
+
+  const getRankColor = (rank: number) => {
+    if (rank === 1) return 'from-yellow-400 to-yellow-600';
+    if (rank === 2) return 'from-gray-300 to-gray-500';
+    if (rank === 3) return 'from-orange-400 to-orange-600';
+    return 'from-blue-500 to-blue-700';
+  };
+
+  const getScoreChange = (cadet: CadetWithScores) => {
+    // Mock data for score changes
+    const changes = [5, -2, 8, 3, -1, 12, 0, 4, -3, 7];
+    return changes[parseInt(cadet.id.slice(-1)) % changes.length] || 0;
+  };
 
   return (
     <motion.div
@@ -176,9 +155,9 @@ const RatingPage: React.FC = () => {
         </motion.div>
 
         {/* Loading State */}
-        {(loading || isProcessing) && (
+        {loading && (
           <div>
-            <LoadingSpinner message={loading ? "Загрузка данных кадетов..." : "Обработка данных..."} />
+            <LoadingSpinner message="Загрузка данных кадетов..." />
           </div>
         )}
 
@@ -288,11 +267,97 @@ const RatingPage: React.FC = () => {
 
         {/* Rating List */}
         {!loading && !error && (
-          <VirtualizedCadetList
-            cadets={filteredCadets}
-            containerHeight={800}
-            onScroll={() => {}}
-          />
+          <motion.div
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
+          className="space-y-6"
+        >
+          {filteredCadets.map((cadet, index) => (
+            <motion.div
+              key={cadet.id}
+              variants={staggerItem}
+              whileHover={{ scale: 1.02, y: -5 }}
+              className="group hover-lift"
+            >
+              <Link to={`/cadet/${cadet.id}`}>
+                <div className="card-hover p-8 shadow-2xl border border-white/20 hover:border-yellow-400/50 transition-all duration-500">
+                  <div className="flex items-center space-x-6">
+                    {/* Rank */}
+                    <div className={`flex-shrink-0 w-20 h-20 rounded-full bg-gradient-to-br ${getRankColor(cadet.rank)} flex items-center justify-center font-bold text-white text-xl shadow-2xl hover-glow`}>
+                      {getRankIcon(cadet.rank)}
+                    </div>
+
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <LazyImage
+                        src={optimizeImageUrl(
+                          cadet.avatar_url || DEFAULTS.AVATAR_URL,
+                          IMAGE_SIZES.AVATAR_MEDIUM.width,
+                          IMAGE_SIZES.AVATAR_MEDIUM.height
+                        )}
+                        alt={cadet.name}
+                        className="w-20 h-20 rounded-full object-cover border-4 border-white/30 group-hover:border-yellow-400/70 transition-all duration-500 shadow-lg"
+                      />
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-grow">
+                      <h3 className="text-2xl font-bold text-white group-hover:text-yellow-300 transition-colors text-shadow">
+                        {cadet.name}
+                      </h3>
+                      <p className="text-blue-300 text-lg">
+                        {cadet.platoon} взвод, {cadet.squad} отделение
+                      </p>
+                    </div>
+
+                    {/* Scores */}
+                    <div className="flex-shrink-0 grid grid-cols-4 gap-4 text-center">
+                      <div>
+                        <div className="flex items-center justify-center space-x-1">
+                          <span className="text-3xl font-black text-white text-glow">{cadet.scores.total}</span>
+                          {(() => {
+                            const change = getScoreChange(cadet);
+                            if (change > 0) {
+                              return <TrendingUp className="h-5 w-5 text-green-400" />;
+                            } else if (change < 0) {
+                              return <TrendingDown className="h-5 w-5 text-red-400" />;
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        <div className="text-sm text-blue-300 font-semibold">Общий</div>
+                        {(() => {
+                          const change = getScoreChange(cadet);
+                          if (change !== 0) {
+                            return (
+                              <div className={`text-sm font-bold ${change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                {change > 0 ? '+' : ''}{change}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-blue-300">{cadet.scores.study}</div>
+                        <div className="text-sm text-blue-400 font-semibold">Учёба</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-red-300">{cadet.scores.discipline}</div>
+                        <div className="text-sm text-red-400 font-semibold">Дисциплина</div>
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-green-300">{cadet.scores.events}</div>
+                        <div className="text-sm text-green-400 font-semibold">Мероприятия</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </motion.div>
         )}
         </div>
       </div>
