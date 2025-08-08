@@ -705,7 +705,7 @@ const getMockAchievements = (): Achievement[] => {
       color: 'from-blue-500 to-blue-700'
     },
     {
-  } else {
+      } else {
     // Создаем новые баллы
     const { error } = await supabase
       .from('scores')
@@ -720,6 +720,7 @@ const getMockAchievements = (): Achievement[] => {
     
     if (error) throw error;
   }
+  ]
   
   // Обновляем общий счет кадета
   const { error: updateCadetError } = await supabase
