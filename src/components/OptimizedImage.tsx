@@ -62,14 +62,14 @@ const OptimizedImage: React.FC<OptimizedImageProps> = memo(({
   };
 
   // Генерируем placeholder на основе размеров
-  const placeholder = `data:image/svg+xml;base64,${btoa(
+  const placeholder = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(
     `<svg width="${width || 400}" height="${height || 300}" xmlns="http://www.w3.org/2000/svg">
       <rect width="100%" height="100%" fill="#e5e7eb"/>
       <text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#9ca3af" font-family="Arial, sans-serif" font-size="14">
-        ${isLoaded ? '' : 'Загрузка...'}
+        ${isLoaded ? '' : 'Loading...'}
       </text>
     </svg>`
-  )}`;
+  )))}`;
 
   return (
     <div ref={imgRef} className={`relative overflow-hidden ${className}`}>
