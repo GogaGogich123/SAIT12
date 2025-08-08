@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authenticateUser, getCadetByAuthId, type AuthUser } from '../lib/auth';
+import { authenticateUser, getCadetByAuthId, signOut, getCurrentUser, type AuthUser } from '../lib/auth';
+import { supabase } from '../lib/supabase';
 
 interface User {
   id: string;
@@ -33,24 +34,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Проверяем сохраненную сессию при загрузке
-    const checkStoredSession = () => {
+    // Проверяем текущую сессию Supabase при загрузке
+    const checkCurrentSession = async () => {
       try {
-        const storedUser = localStorage.getItem('auth_user');
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          console.log('Loaded stored user:', userData);
-          setUser(userData);
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          console.log('Current user found:', currentUser);
+          await handleAuthUser(currentUser);
         }
       } catch (error) {
-        console.error('Error loading stored session:', error);
-        localStorage.removeItem('auth_user');
+        console.error('Error checking current session:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    checkStoredSession();
+    checkCurrentSession();
+
+    // Слушаем изменения состояния аутентификации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_OUT' || !session) {
+        setUser(null);
+        localStorage.removeItem('auth_user');
+      } else if (event === 'SIGNED_IN' && session.user) {
+        const currentUser = await getCurrentUser();
+        if (currentUser) {
+          await handleAuthUser(currentUser);
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleAuthUser = async (authUser: AuthUser) => {
@@ -120,8 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     console.log('Logging out user');
-    localStorage.removeItem('auth_user');
+    signOut();
     setUser(null);
+    localStorage.removeItem('auth_user');
   };
 
   const isAdmin = user?.role === 'admin';

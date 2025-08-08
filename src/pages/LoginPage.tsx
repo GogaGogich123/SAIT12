@@ -6,7 +6,6 @@ import { useAuth } from '../context/AuthContext';
 import ParticleBackground from '../components/ParticleBackground';
 import ModernBackground from '../components/ModernBackground';
 import AnimatedSVGBackground from '../components/AnimatedSVGBackground';
-import { TEST_ACCOUNTS } from '../lib/auth';
 import { fadeInUp, scaleIn } from '../utils/animations';
 
 const LoginPage: React.FC = () => {
@@ -141,33 +140,6 @@ const LoginPage: React.FC = () => {
                 </>
               )}
             </motion.button>
-          </div>
-
-          <div className="mt-12 pt-8 border-t border-white/20">
-            <div className="text-blue-200">
-              <p className="mb-4 font-bold text-lg">Тестовые учетные записи:</p>
-              <div className="space-y-4">
-                <motion.div 
-                  whileHover={{ scale: 1.02 }}
-                  className="glass-effect rounded-xl p-4 hover-lift"
-                >
-                  <strong>Администратор:</strong><br />
-                  Email: {TEST_ACCOUNTS.admin.email}<br />
-                  Пароль: {TEST_ACCOUNTS.admin.password}
-                </motion.div>
-                {TEST_ACCOUNTS.cadets.map((cadet, index) => (
-                  <motion.div 
-                    key={index}
-                    whileHover={{ scale: 1.02 }}
-                    className="glass-effect rounded-xl p-4 hover-lift"
-                  >
-                    <strong>Кадет ({cadet.name.split(' ')[0]}):</strong><br />
-                    Email: {cadet.email}<br />
-                    Пароль: {cadet.password}
-                  </motion.div>
-                ))}
-              </div>
-            </div>
           </div>
         </motion.form>
       </div>

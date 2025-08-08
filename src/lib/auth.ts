@@ -12,113 +12,128 @@ export interface LoginCredentials {
   password: string;
 }
 
-// Тестовые аккаунты для демонстрации
-export const TEST_ACCOUNTS = {
-  admin: {
-    email: 'admin@nkkk.ru',
-    password: 'admin123',
-    name: 'Администратор Иванов И.И.',
-    role: 'admin' as const
-  },
-  cadets: [
-    {
-      email: 'petrov@nkkk.ru',
-      password: 'test123',
-      name: 'Петров Алексей Владимирович',
-      role: 'cadet' as const,
-      cadetId: '1'
-    },
-    {
-      email: 'sidorov@nkkk.ru',
-      password: 'test123',
-      name: 'Сидоров Дмитрий Александрович',
-      role: 'cadet' as const,
-      cadetId: '2'
-    },
-    {
-      email: 'kozlov@nkkk.ru',
-      password: 'test123',
-      name: 'Козлов Михаил Сергеевич',
-      role: 'cadet' as const,
-      cadetId: '3'
-    }
-  ]
-};
-
-// Простая аутентификация с тестовыми аккаунтами
+// Аутентификация через Supabase Auth
 export const authenticateUser = async (credentials: LoginCredentials): Promise<AuthUser | null> => {
   try {
     console.log('Attempting to authenticate:', credentials.email);
     
-    // Проверяем админа
-    if (credentials.email === TEST_ACCOUNTS.admin.email && 
-        credentials.password === TEST_ACCOUNTS.admin.password) {
-      console.log('Admin authenticated successfully');
-      return {
-        id: 'admin-1',
-        email: TEST_ACCOUNTS.admin.email,
-        role: 'admin',
-        name: TEST_ACCOUNTS.admin.name
-      };
+    // Используем Supabase Auth для входа
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    });
+
+    if (authError) {
+      console.error('Supabase auth error:', authError);
+      return null;
     }
-    
-    // Проверяем кадетов
-    const cadet = TEST_ACCOUNTS.cadets.find(c => 
-      c.email === credentials.email && c.password === credentials.password
-    );
-    
-    if (cadet) {
-      console.log('Cadet authenticated successfully:', cadet.name);
-      return {
-        id: cadet.cadetId,
-        email: cadet.email,
-        role: 'cadet',
-        name: cadet.name
-      };
+
+    if (!authData.user) {
+      console.log('No user returned from auth');
+      return null;
     }
-    
-    console.log('Authentication failed: invalid credentials');
-    return null;
+
+    console.log('Auth successful, user:', authData.user);
+
+    // Получаем дополнительные данные пользователя из таблицы users
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', credentials.email)
+      .single();
+
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      // Если нет записи в таблице users, создаем базовую запись
+      const newUser: AuthUser = {
+        id: authData.user.id,
+        email: authData.user.email!,
+        role: 'cadet', // По умолчанию кадет
+        name: authData.user.email!.split('@')[0]
+      };
+      return newUser;
+    }
+
+    console.log('User data found:', userData);
+
+    return {
+      id: authData.user.id,
+      email: userData.email,
+      role: userData.role,
+      name: userData.name
+    };
+
   } catch (error) {
     console.error('Authentication error:', error);
     return null;
   }
 };
 
-// Получение данных кадета по ID
+// Получение данных кадета по ID пользователя
 export const getCadetByAuthId = async (authUserId: string) => {
   try {
     console.log('Getting cadet by auth ID:', authUserId);
     
-    // Для тестовых аккаунтов возвращаем соответствующие данные
-    const cadet = TEST_ACCOUNTS.cadets.find(c => c.cadetId === authUserId);
-    if (cadet) {
-      const { data, error } = await supabase
-        .from('cadets')
-        .select('*')
-        .eq('id', authUserId)
-        .maybeSingle();
-      
-      if (error && error.code !== 'PGRST116') {
-        console.error('Supabase error:', error);
-      }
-      
-      // Возвращаем данные из базы или моковые данные
-      return data || {
-        id: authUserId,
-        name: cadet.name,
-        platoon: '10-1',
-        squad: 1,
-        rank: parseInt(authUserId),
-        total_score: 275 - (parseInt(authUserId) - 1) * 7,
-        avatar_url: `https://images.pexels.com/photos/104347${authUserId}/pexels-photo-104347${authUserId}.jpeg?w=200`,
-        join_date: '2023-09-01'
-      };
+    const { data, error } = await supabase
+      .from('cadets')
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .maybeSingle();
+    
+    if (error && error.code !== 'PGRST116') {
+      console.error('Supabase error:', error);
+      return null;
     }
     
-    return null;
+    console.log('Cadet data:', data);
+    return data;
   } catch (error) {
     console.error('Error fetching cadet by auth ID:', error);
+    return null;
+  }
+};
+
+// Выход из системы
+export const signOut = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Sign out error:', error);
+    }
+  } catch (error) {
+    console.error('Sign out error:', error);
+  }
+};
+
+// Получение текущего пользователя
+export const getCurrentUser = async (): Promise<AuthUser | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return null;
+    }
+
+    // Получаем данные из таблицы users
+    const { data: userData, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', user.email!)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user data:', error);
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: userData.email,
+      role: userData.role,
+      name: userData.name
+    };
+  } catch (error) {
+    console.error('Error getting current user:', error);
     return null;
   }
 };
